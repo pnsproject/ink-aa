@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ink::env::Environment;
+use scale::{Decode, Encode};
 
 /**
  * 返回从validateUserOp获得的数据。  
@@ -11,18 +12,18 @@ use ink::env::Environment;
  * @param validAfter - 只有在此时间戳之后,此UserOp才有效。  
  * @param validaUntil - 只有在此时间戳之前,此UserOp才有效。   
  */
-#[derive(Clone, Copy, Debug)]
-pub struct ValidationData<E: Environment> {
-    pub aggregator: E::AccountId,
+#[derive(Clone, Copy, Encode, Decode)]
+pub struct ValidationData<Account> {
+    pub aggregator: Account,
     pub valid_after: u64,
     pub valid_until: u64,
 }
 
 // 相交账户和支付主管的时间范围。
 pub fn intersect_time_range<E: Environment>(
-    account_validation_data: ValidationData<E>,
-    paymaster_validation_data: ValidationData<E>,
-) -> ValidationData<E> {
+    account_validation_data: ValidationData<E::AccountId>,
+    paymaster_validation_data: ValidationData<E::AccountId>,
+) -> ValidationData<E::AccountId> {
     let aggregator = if account_validation_data
         .aggregator
         .as_ref()
