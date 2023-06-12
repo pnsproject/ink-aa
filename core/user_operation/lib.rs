@@ -19,7 +19,7 @@ pub type EnvUserOperation<E> = UserOperation<
 >;
 
 /// `UserOperation` 结构体定义了一个用户操作。
-#[derive(scale::Encode, scale::Decode)]
+#[derive(scale::Encode, scale::Decode, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UserOperation<AccountId, Hash, Balance> {
     /// 发送人的账户 ID。
     pub sender: AccountId,

@@ -10,6 +10,11 @@ ink = { version = "4.2.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.6", default-features = false, features = ["derive"], optional = true }
 
+user_operation = { path = "../../core/user_operation" }
+stake_manager_trait = { path = "../stake_manager_trait" }
+aggregator_trait = { path = "../aggregator_trait" }
+nonce_manager_trait = { path = "../nonce_manager_trait" }
+
 [dev-dependencies]
 ink_e2e = "4.2.0"
 
@@ -18,10 +23,6 @@ path = "lib.rs"
 
 [features]
 default = ["std"]
-std = [
-    "ink/std",
-    "scale/std",
-    "scale-info/std",
-]
+std = ["ink/std", "scale/std", "scale-info/std"]
 ink-as-dependency = []
 e2e-tests = []

@@ -961,10 +961,14 @@ dependencies = [
 name = "entry_point_trait"
 version = "0.1.0"
 dependencies = [
+ "aggregator_trait",
  "ink",
  "ink_e2e",
+ "nonce_manager_trait",
  "parity-scale-codec",
  "scale-info",
+ "stake_manager_trait",
+ "user_operation",
 ]
 
 [[package]]
