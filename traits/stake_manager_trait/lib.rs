@@ -1,147 +1,177 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use stake_manager_trait::{
+    DepositInfo, Deposited, IStakeManager, StakeInfo, StakeLocked, StakeUnlocked, StakeWithdrawn,
+    Withdrawn,
+};
+
+/// 用于管理存款和抵押的 Ink! 合约特性的模块。
 #[ink::contract]
 mod stake_manager_trait {
+    use scale::{Decode, Encode};
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+    /// StakeManagerTrait 合约的存储结构体。
     #[ink(storage)]
-    pub struct StakeManagerTrait {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
+    pub struct StakeManagerTrait {}
+
+    /// 存款成功时触发的事件。
+    #[ink(event)]
+    pub struct Deposited {
+        #[ink(topic)]
+        /// 进行存款的账户 ID。
+        account: AccountId,
+        /// 存款总额。
+        total_deposit: Balance,
+    }
+
+    /// 取款成功时触发的事件。
+    #[ink(event)]
+    pub struct Withdrawn {
+        #[ink(topic)]
+        /// 进行取款的账户 ID。
+        account: AccountId,
+        /// 取款金额将转入的账户 ID。
+        withdraw_address: AccountId,
+        /// 取款金额。
+        amount: Balance,
+    }
+
+    /// 抵押成功时触发的事件。
+    #[ink(event)]
+    pub struct StakeLocked {
+        #[ink(topic)]
+        /// 进行抵押的账户 ID。
+        account: AccountId,
+        /// 抵押总额。
+        total_staked: Balance,
+        /// 抵押在可取回前需要的延迟时间（秒）。
+        unstake_delay_sec: Timestamp,
+    }
+
+    /// 取消抵押成功时触发的事件。
+    #[ink(event)]
+    pub struct StakeUnlocked {
+        #[ink(topic)]
+        /// 进行取消抵押的账户 ID。
+        account: AccountId,
+        /// 抵押可以取回的时间。
+        withdraw_time: Timestamp,
+    }
+
+    /// 取回抵押成功时触发的事件。
+    #[ink(event)]
+    pub struct StakeWithdrawn {
+        #[ink(topic)]
+        /// 进行取回抵押的账户 ID。
+        account: AccountId,
+        /// 取回抵押金额将转入的账户 ID。
+        withdraw_address: AccountId,
+        /// 取回抵押的金额。
+        amount: Balance,
+    }
+
+    /// 存款信息。
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+    pub struct DepositInfo {
+        /// 实际存款金额。
+        deposit: Balance,
+        /// 是否已进行抵押。
+        staked: bool,
+        /// 为此实体抵押的实际以太币金额。
+        stake: Balance,
+        /// 抵押在可取回前需要的最短时间（秒）。
+        unstake_delay_sec: Timestamp,
+        /// 如果已锁定，则调用 `withdraw_stake` 的第一个块时间戳。如果未锁定，则为零。
+        withdraw_time: Timestamp,
+    }
+
+    /// 用于 `get_stake_info` 和 `simulate_validation` 的 API 结构体。
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+    pub struct StakeInfo {
+        /// 抵押的以太币金额。
+        stake: Balance,
+        /// 抵押在可取回前需要的延迟时间（秒）。
+        unstake_delay_sec: Timestamp,
+    }
+
+    /// 用于管理存款和抵押的特性定义。
+    #[ink::trait_definition]
+    pub trait IStakeManager {
+        /// 返回给定账户的存款信息。
+        ///
+        /// # Arguments
+        ///
+        /// * `account`：要获取存款信息的账户 ID。
+        ///
+        /// # Returns
+        ///
+        /// 给定账户的完整存款信息。
+        #[ink(message)]
+        fn get_deposit_info(&self, account: AccountId) -> DepositInfo;
+
+        /// 返回给定账户的余额，用于支付燃气费。
+        ///
+        /// # Arguments
+        ///
+        /// * `account`：要获取余额的账户 ID。
+        ///
+        /// # Returns
+        ///
+        /// 给定账户的余额。
+        #[ink(message)]
+        fn balance_of(&self, account: AccountId) -> Balance;
+
+        /// 向给定账户添加存款。
+        ///
+        /// # Arguments
+        ///
+        /// * `account`：要添加存款的账户 ID。
+        #[ink(message, payable)]
+        fn deposit_to(&self, account: AccountId);
+
+        /// 向具有给定延迟的账户添加抵押。
+        ///
+        /// 任何待处理的取回操作将被取消。
+        ///
+        /// # Arguments
+        ///
+        /// * `unstake_delay_sec`：抵押在可取回前需要的新延迟时间（秒）。
+        #[ink(message, payable)]
+        fn add_stake(&self, unstake_delay_sec: Timestamp);
+
+        /// 尝试取消抵押。
+        ///
+        /// 可以在取回延迟期结束后取回抵押金额。
+        #[ink(message)]
+        fn unlock_stake(&self);
+
+        /// 从已取消抵押的抵押中取回金额。
+        ///
+        /// 必须先调用 `unlock_stake` 并等待取回延迟期结束。
+        ///
+        /// # Arguments
+        ///
+        /// * `withdraw_address`：要发送取回金额的地址。
+        #[ink(message, payable)]
+        fn withdraw_stake(&self, withdraw_address: AccountId);
+
+        /// 从存款中取回金额。
+        ///
+        /// # Arguments
+        ///
+        /// * `withdraw_address`：要发送取回金额的地址。
+        /// * `withdraw_amount`：要取回的金额。
+        #[ink(message, payable)]
+        fn withdraw_to(&self, withdraw_address: AccountId, withdraw_amount: Balance);
     }
 
     impl StakeManagerTrait {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new() -> Self {
+            Self {}
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
         #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let stake_manager_trait = StakeManagerTrait::default();
-            assert_eq!(stake_manager_trait.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut stake_manager_trait = StakeManagerTrait::new(false);
-            assert_eq!(stake_manager_trait.get(), false);
-            stake_manager_trait.flip();
-            assert_eq!(stake_manager_trait.get(), true);
-        }
-    }
-
-    /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
-    ///
-    /// When running these you need to make sure that you:
-    /// - Compile the tests with the `e2e-tests` feature flag enabled (`--features e2e-tests`)
-    /// - Are running a Substrate node which contains `pallet-contracts` in the background
-    #[cfg(all(test, feature = "e2e-tests"))]
-    mod e2e_tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// A helper function used for calling contract messages.
-        use ink_e2e::build_message;
-
-        /// The End-to-End test `Result` type.
-        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-        /// We test that we can upload and instantiate the contract using its default constructor.
-        #[ink_e2e::test]
-        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = StakeManagerTraitRef::default();
-
-            // When
-            let contract_account_id = client
-                .instantiate(
-                    "stake_manager_trait",
-                    &ink_e2e::alice(),
-                    constructor,
-                    0,
-                    None,
-                )
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            // Then
-            let get = build_message::<StakeManagerTraitRef>(contract_account_id.clone())
-                .call(|stake_manager_trait| stake_manager_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            Ok(())
-        }
-
-        /// We test that we can read and write a value from the on-chain contract contract.
-        #[ink_e2e::test]
-        async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = StakeManagerTraitRef::new(false);
-            let contract_account_id = client
-                .instantiate("stake_manager_trait", &ink_e2e::bob(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            let get = build_message::<StakeManagerTraitRef>(contract_account_id.clone())
-                .call(|stake_manager_trait| stake_manager_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            // When
-            let flip = build_message::<StakeManagerTraitRef>(contract_account_id.clone())
-                .call(|stake_manager_trait| stake_manager_trait.flip());
-            let _flip_result = client
-                .call(&ink_e2e::bob(), flip, 0, None)
-                .await
-                .expect("flip failed");
-
-            // Then
-            let get = build_message::<StakeManagerTraitRef>(contract_account_id.clone())
-                .call(|stake_manager_trait| stake_manager_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), true));
-
-            Ok(())
-        }
+        pub fn hello(&self) {}
     }
 }
