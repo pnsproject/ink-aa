@@ -1,141 +1,70 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-#[ink::contract]
-mod paymaster_trait {
+use helpers::EnvValidationData;
+use ink::env::Environment;
+use user_operation::EnvUserOperation;
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
-    #[ink(storage)]
-    pub struct PaymasterTrait {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
-    }
-
-    impl PaymasterTrait {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
-        #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
-        }
-
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
-        #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let paymaster_trait = PaymasterTrait::default();
-            assert_eq!(paymaster_trait.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut paymaster_trait = PaymasterTrait::new(false);
-            assert_eq!(paymaster_trait.get(), false);
-            paymaster_trait.flip();
-            assert_eq!(paymaster_trait.get(), true);
-        }
-    }
-
-    /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
+/// IPaymaster trait定义了一个支付代理合约应该实现的接口，它同意为用户的操作支付gas费用。
+/// 支付代理必须持有一定的股份来支付所需的entryPoint的股份和交易的gas费用。
+#[ink::trait_definition]
+pub trait IPaymaster {
+    /// 支付验证：检查支付代理是否同意支付。
+    /// 必须验证sender是否是entryPoint。
+    /// Revert来拒绝此请求。
+    /// 注意，如果此方法更改状态，则bundler将拒绝此方法，除非支付代理受信任（白名单）。
+    /// 支付代理使用其存款进行预付，然后在postOp方法返回后获得退款。
     ///
-    /// When running these you need to make sure that you:
-    /// - Compile the tests with the `e2e-tests` feature flag enabled (`--features e2e-tests`)
-    /// - Are running a Substrate node which contains `pallet-contracts` in the background
-    #[cfg(all(test, feature = "e2e-tests"))]
-    mod e2e_tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
+    /// # 参数
+    ///
+    /// * `user_op` - 用户操作
+    /// * `user_op_hash` - 用户请求数据的哈希值。
+    /// * `max_cost` - 此交易的最大成本（基于用户操作的最大gas和gas价格）
+    ///
+    /// # 返回值
+    ///
+    /// 返回一个元组，包含以下值：
+    /// * `context` - 发送到postOp的上下文值，如果不需要postOp则为零长度。
+    /// * `validationData` - 此操作的签名和时间范围，与validateUserOperation的返回值相同。
+    ///      <20-byte> sigAuthorizer - 如果签名有效，则为0，如果签名失败，则为1，否则为“授权者”合约的地址。
+    ///      <6-byte> validUntil - 此操作有效的最后时间戳。0表示“无限期”
+    ///      <6-byte> validAfter - 此操作有效的第一个时间戳
+    ///      注意，验证代码不能直接使用block.timestamp（或block.number）。
+    #[ink(message)]
+    fn validate_paymaster_user_op(
+        &self,
+        user_op: EnvUserOperation<Self::Env>,
+        user_op_hash: <Self::Env as Environment>::Hash,
+        max_cost: <Self::Env as Environment>::Balance,
+    ) -> (Vec<u8>, EnvValidationData<Self::Env>);
 
-        /// A helper function used for calling contract messages.
-        use ink_e2e::build_message;
+    /// 操作后处理程序。
+    /// 必须验证sender是否是entryPoint
+    ///
+    /// # 参数
+    ///
+    /// * `mode` - 枚举类型，具有以下选项：
+    ///      OpSucceeded - 用户操作成功。
+    ///      OpReverted  - 用户操作失败。仍需支付gas费用。
+    ///      PostOpReverted - 用户操作成功，但导致postOp（在mode = OpSucceeded的情况下）失败。
+    ///                       现在这是第二次调用，在用户的操作被故意还原后。
+    /// * `context` - validatePaymasterUserOp返回的上下文值
+    /// * `actual_gas_cost` - 到目前为止实际使用的gas（不包括此postOp调用）。
+    #[ink(message)]
+    fn post_op(
+        &self,
+        mode: PostOpMode,
+        context: Vec<u8>,
+        actual_gas_cost: <Self::Env as Environment>::Balance,
+    );
+}
 
-        /// The End-to-End test `Result` type.
-        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-        /// We test that we can upload and instantiate the contract using its default constructor.
-        #[ink_e2e::test]
-        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = PaymasterTraitRef::default();
-
-            // When
-            let contract_account_id = client
-                .instantiate("paymaster_trait", &ink_e2e::alice(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            // Then
-            let get = build_message::<PaymasterTraitRef>(contract_account_id.clone())
-                .call(|paymaster_trait| paymaster_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            Ok(())
-        }
-
-        /// We test that we can read and write a value from the on-chain contract contract.
-        #[ink_e2e::test]
-        async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = PaymasterTraitRef::new(false);
-            let contract_account_id = client
-                .instantiate("paymaster_trait", &ink_e2e::bob(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            let get = build_message::<PaymasterTraitRef>(contract_account_id.clone())
-                .call(|paymaster_trait| paymaster_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            // When
-            let flip = build_message::<PaymasterTraitRef>(contract_account_id.clone())
-                .call(|paymaster_trait| paymaster_trait.flip());
-            let _flip_result = client
-                .call(&ink_e2e::bob(), flip, 0, None)
-                .await
-                .expect("flip failed");
-
-            // Then
-            let get = build_message::<PaymasterTraitRef>(contract_account_id.clone())
-                .call(|paymaster_trait| paymaster_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), true));
-
-            Ok(())
-        }
-    }
+/// PostOpMode是一个枚举类型，用于标识postOp方法中的操作模式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, scale::Encode, scale::Decode, Hash)]
+pub enum PostOpMode {
+    /// 用户操作成功
+    OpSucceeded,
+    /// 用户操作失败。仍需支付gas费用。
+    OpReverted,
+    /// 用户操作成功，但导致postOp（在mode = OpSucceeded的情况下）失败。 现在这是第二次调用，在用户的操作被故意还原后。
+    PostOpReverted,
 }
