@@ -1,5 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use entry_point_trait::{
+    AccountDeployed, AggregatorStakeInfo, BeforeExecution, IEntryPoint, ReturnInfo,
+    SignatureAggregatorChanged, UserOperationEvent, UserOperationRevertReason,
+    UserOpsPerAggregator,
+};
+
 #[ink::contract]
 mod entry_point_trait {
     use scale::{Decode, Encode};
