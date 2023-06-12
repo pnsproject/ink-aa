@@ -3,15 +3,15 @@
 use ink::env::Environment;
 use scale::{Decode, Encode};
 
-/**
- * 返回从validateUserOp获得的数据。  
- * validateUserOp 返回一个uint256,它由`_packedValidationData`创建并由`_parseValidationData`解析  
- * @param aggregator - address(0) - 账户自己验证了签名。  
- *              address(1) - 账户未能验证签名。  
- *              否则 - 这是一个签名聚合器的地址,必须用于验证签名。  
- * @param validAfter - 只有在此时间戳之后,此UserOp才有效。  
- * @param validaUntil - 只有在此时间戳之前,此UserOp才有效。   
- */
+/// 返回从 validateUserOp 获得的数据。
+///
+/// validateUserOp 返回一个 uint256，它由 `_packedValidationData` 创建并由 `_parseValidationData` 解析。
+///
+/// # Arguments
+///
+/// * `aggregator` - 聚合器地址，用于验证签名。如果为 `address(0)`，则表示账户自己验证了签名；如果为 `address(1)`，则表示账户未能验证签名。
+/// * `valid_after` - 此 UserOp 的有效开始时间戳。
+/// * `valid_until` - 此 UserOp 的有效截止时间戳。
 #[derive(Clone, Copy, Encode, Decode)]
 pub struct ValidationData<Account> {
     pub aggregator: Account,

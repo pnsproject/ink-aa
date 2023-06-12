@@ -1,141 +1,46 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
+use user_operation::EnvUserOperation;
 
-#[ink::contract]
-mod aggregator_trait {
-
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
-    #[ink(storage)]
-    pub struct AggregatorTrait {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
-    }
-
-    impl AggregatorTrait {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
-        #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
-        }
-
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
-        #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let aggregator_trait = AggregatorTrait::default();
-            assert_eq!(aggregator_trait.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut aggregator_trait = AggregatorTrait::new(false);
-            assert_eq!(aggregator_trait.get(), false);
-            aggregator_trait.flip();
-            assert_eq!(aggregator_trait.get(), true);
-        }
-    }
-
-    /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
+#[ink::trait_definition]
+pub trait IAggregator {
+    /// 验证聚合签名。
     ///
-    /// When running these you need to make sure that you:
-    /// - Compile the tests with the `e2e-tests` feature flag enabled (`--features e2e-tests`)
-    /// - Are running a Substrate node which contains `pallet-contracts` in the background
-    #[cfg(all(test, feature = "e2e-tests"))]
-    mod e2e_tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
+    /// 如果聚合签名与给定操作列表不匹配，则回滚。
+    ///
+    /// # Arguments
+    ///
+    /// * `user_ops` - 给定的操作列表。
+    /// * `signature` - 聚合签名。
+    #[ink(message)]
+    fn validate_signatures(&self, user_ops: Vec<EnvUserOperation<Self::Env>>, signature: Vec<u8>);
 
-        /// A helper function used for calling contract messages.
-        use ink_e2e::build_message;
+    /// 验证单个用户操作的签名。
+    ///
+    /// 该方法应在 `EntryPoint.simulateValidation()` 返回后由 `bundler` 调用（回滚）。
+    /// 首先它验证用户操作上的签名。然后返回用于创建时使用的数据。
+    ///
+    /// # Arguments
+    ///
+    /// * `user_op` - 从用户接收到的用户操作。
+    ///
+    /// # Returns
+    ///
+    /// 在调用 `handle` 时放入用户操作的签名字段中的值（通常为空，除非账户和聚合器支持某种“多签”）。
+    #[ink(message)]
+    fn validate_user_op_signature(&self, user_op: EnvUserOperation<Self::Env>) -> Vec<u8>;
 
-        /// The End-to-End test `Result` type.
-        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-        /// We test that we can upload and instantiate the contract using its default constructor.
-        #[ink_e2e::test]
-        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = AggregatorTraitRef::default();
-
-            // When
-            let contract_account_id = client
-                .instantiate("aggregator_trait", &ink_e2e::alice(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            // Then
-            let get = build_message::<AggregatorTraitRef>(contract_account_id.clone())
-                .call(|aggregator_trait| aggregator_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            Ok(())
-        }
-
-        /// We test that we can read and write a value from the on-chain contract contract.
-        #[ink_e2e::test]
-        async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = AggregatorTraitRef::new(false);
-            let contract_account_id = client
-                .instantiate("aggregator_trait", &ink_e2e::bob(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            let get = build_message::<AggregatorTraitRef>(contract_account_id.clone())
-                .call(|aggregator_trait| aggregator_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            // When
-            let flip = build_message::<AggregatorTraitRef>(contract_account_id.clone())
-                .call(|aggregator_trait| aggregator_trait.flip());
-            let _flip_result = client
-                .call(&ink_e2e::bob(), flip, 0, None)
-                .await
-                .expect("flip failed");
-
-            // Then
-            let get = build_message::<AggregatorTraitRef>(contract_account_id.clone())
-                .call(|aggregator_trait| aggregator_trait.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), true));
-
-            Ok(())
-        }
-    }
+    /// 将多个签名聚合为单个值。
+    ///
+    /// 此方法在链外调用，用于计算处理操作时传递的签名。
+    /// `bundler` 可能使用优化的自定义代码执行此聚合。
+    ///
+    /// # Arguments
+    ///
+    /// * `user_ops` - 收集签名的 `UserOperations` 数组。
+    ///
+    /// # Returns
+    ///
+    /// 聚合签名。
+    #[ink(message)]
+    fn aggregate_signatures(&self, user_ops: Vec<EnvUserOperation<Self::Env>>) -> Vec<u8>;
 }
