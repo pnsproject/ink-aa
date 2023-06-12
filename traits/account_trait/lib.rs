@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-use helpers::ValidationData;
+use helpers::EnvValidationData;
 use ink::env::Environment;
 use user_operation::EnvUserOperation;
 
@@ -44,5 +44,5 @@ pub trait IAccount {
         user_op: EnvUserOperation<Self::Env>,
         user_op_hash: <Self::Env as Environment>::Hash,
         missing_account_funds: <Self::Env as Environment>::Balance,
-    ) -> ValidationData<<Self::Env as Environment>::AccountId>;
+    ) -> EnvValidationData<Self::Env>;
 }

@@ -3,6 +3,9 @@
 use ink::env::Environment;
 use scale::{Decode, Encode};
 
+pub type EnvValidationData<E> =
+    ValidationData<<E as Environment>::AccountId, <E as Environment>::Timestamp>;
+
 /// 返回从 validateUserOp 获得的数据。
 ///
 /// validateUserOp 返回一个 uint256，它由 `_packedValidationData` 创建并由 `_parseValidationData` 解析。
@@ -13,17 +16,17 @@ use scale::{Decode, Encode};
 /// * `valid_after` - 此 UserOp 的有效开始时间戳。
 /// * `valid_until` - 此 UserOp 的有效截止时间戳。
 #[derive(Clone, Copy, Encode, Decode)]
-pub struct ValidationData<Account> {
+pub struct ValidationData<Account, Timestamp> {
     pub aggregator: Account,
-    pub valid_after: u64,
-    pub valid_until: u64,
+    pub valid_after: Timestamp,
+    pub valid_until: Timestamp,
 }
 
 // 相交账户和支付主管的时间范围。
 pub fn intersect_time_range<E: Environment>(
-    account_validation_data: ValidationData<E::AccountId>,
-    paymaster_validation_data: ValidationData<E::AccountId>,
-) -> ValidationData<E::AccountId> {
+    account_validation_data: EnvValidationData<E>,
+    paymaster_validation_data: EnvValidationData<E>,
+) -> EnvValidationData<E> {
     let aggregator = if account_validation_data
         .aggregator
         .as_ref()
