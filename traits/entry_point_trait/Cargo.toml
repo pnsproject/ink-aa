@@ -14,6 +14,7 @@ user_operation = { path = "../../core/user_operation" }
 stake_manager_trait = { path = "../stake_manager_trait" }
 aggregator_trait = { path = "../aggregator_trait" }
 nonce_manager_trait = { path = "../nonce_manager_trait" }
+env = { path = "../../core/env" }
 
 [dev-dependencies]
 ink_e2e = "4.2.0"

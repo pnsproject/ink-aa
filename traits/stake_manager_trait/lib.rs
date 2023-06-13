@@ -6,7 +6,7 @@ pub use stake_manager_trait::{
 };
 
 /// 用于管理存款和抵押的 Ink! 合约特性的模块。
-#[ink::contract]
+#[ink::contract(env = env::AccountAbstractionEnvironment)]
 mod stake_manager_trait {
     use scale::{Decode, Encode};
 

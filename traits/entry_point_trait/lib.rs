@@ -6,7 +6,7 @@ pub use entry_point_trait::{
     UserOpsPerAggregator,
 };
 
-#[ink::contract]
+#[ink::contract(env = env::AccountAbstractionEnvironment)]
 mod entry_point_trait {
     use scale::{Decode, Encode};
     use stake_manager_trait::StakeInfo;
