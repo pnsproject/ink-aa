@@ -1,72 +1,161 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-#[ink::contract]
+#[ink::contract(env = env::AccountAbstractionEnvironment)]
 mod stake_manager {
+    use ink::codegen::EmitEvent;
+    use ink::storage::Mapping;
+    use stake_manager_trait::{
+        DepositInfo, Deposited, IStakeManager, StakeLocked, StakeUnlocked, StakeWithdrawn,
+        Withdrawn,
+    };
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct StakeManager {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
+        deposits: Mapping<AccountId, DepositInfo>,
     }
 
     impl StakeManager {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new() -> Self {
+            Self {
+                deposits: Mapping::default(),
+            }
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
-        #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
+        fn increment_deposit(&mut self, account: AccountId, amount: Balance) {
+            let mut info = self.get_deposit_info(account);
+            let new_amount = info.deposit.checked_add(amount);
+            assert!(new_amount.is_some(), "deposit overflow");
+            info.deposit = new_amount.unwrap();
+            self.deposits.insert(account, &info);
         }
     }
 
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let stake_manager = StakeManager::default();
-            assert_eq!(stake_manager.get(), false);
+    impl IStakeManager for StakeManager {
+        #[ink(message)]
+        fn get_deposit_info(&self, account: AccountId) -> DepositInfo {
+            self.deposits.get(account).unwrap_or_default()
         }
 
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut stake_manager = StakeManager::new(false);
-            assert_eq!(stake_manager.get(), false);
-            stake_manager.flip();
-            assert_eq!(stake_manager.get(), true);
+        #[ink(message)]
+        fn balance_of(&self, account: AccountId) -> Balance {
+            self.get_deposit_info(account).deposit
+        }
+
+        #[ink(message, payable)]
+        fn deposit_to(&mut self, account: AccountId) {
+            self.increment_deposit(account, Self::env().transferred_value());
+            let info = self.get_deposit_info(account);
+            self.env().emit_event(Deposited {
+                account,
+                total_deposit: info.deposit,
+            });
+        }
+
+        #[ink(message, payable)]
+        fn add_stake(&mut self, unstake_delay_sec: Timestamp) {
+            let info = self.deposits.get(Self::env().caller()).unwrap_or_default();
+            assert!(unstake_delay_sec > 0, "must specify unstake delay");
+            assert!(
+                unstake_delay_sec >= info.unstake_delay_sec,
+                "cannot decrease unstake time"
+            );
+            let stake = info.stake.checked_add(Self::env().transferred_value());
+            assert!(stake.is_some(), "deposit overflow");
+            let stake = stake.unwrap();
+            assert!(stake > 0, "no stake specified");
+            self.deposits.insert(
+                Self::env().caller(),
+                &DepositInfo {
+                    deposit: info.deposit,
+                    staked: true,
+                    stake,
+                    unstake_delay_sec,
+                    withdraw_time: 0,
+                },
+            );
+            Self::env().emit_event(StakeLocked {
+                account: Self::env().caller(),
+                total_staked: stake,
+                unstake_delay_sec,
+            });
+        }
+
+        #[ink(message)]
+        fn unlock_stake(&mut self) {
+            let info = self.get_deposit_info(self.env().caller());
+            assert!(info.unstake_delay_sec > 0, "not staked");
+            assert!(info.staked, "already unstaking");
+            let withdraw_time = Self::env()
+                .block_timestamp()
+                .checked_add(info.unstake_delay_sec)
+                .unwrap_or(Timestamp::MAX);
+
+            self.deposits.insert(
+                Self::env().caller(),
+                &DepositInfo {
+                    staked: false,
+                    withdraw_time,
+                    ..info
+                },
+            );
+            Self::env().emit_event(StakeUnlocked {
+                account: Self::env().caller(),
+                withdraw_time,
+            });
+        }
+
+        #[ink(message, payable)]
+        fn withdraw_stake(&mut self, withdraw_address: AccountId) {
+            let info = self.deposits.get(Self::env().caller()).unwrap_or_default();
+            let stake = info.stake;
+            assert!(stake > 0, "No stake to withdraw");
+            assert!(info.withdraw_time > 0, "must call unlockStake() first");
+            assert!(
+                info.withdraw_time <= Self::env().block_timestamp(),
+                "Stake withdrawal is not due"
+            );
+            self.deposits.insert(
+                Self::env().caller(),
+                &DepositInfo {
+                    unstake_delay_sec: 0,
+                    withdraw_time: 0,
+                    stake: 0,
+                    ..info
+                },
+            );
+            Self::env().emit_event(StakeWithdrawn {
+                account: Self::env().caller(),
+                withdraw_address,
+                amount: stake,
+            });
+            let transfer_result = self.env().transfer(withdraw_address, stake);
+
+            assert!(transfer_result.is_ok(), "failed to withdraw stake");
+        }
+
+        #[ink(message, payable)]
+        fn withdraw_to(&mut self, withdraw_address: AccountId, withdraw_amount: Balance) {
+            let info = self.deposits.get(Self::env().caller()).unwrap_or_default();
+            assert!(withdraw_amount <= info.deposit, "Withdraw amount too large");
+            let deposit = info.deposit.checked_sub(withdraw_amount);
+            assert!(deposit.is_some(), "deposit overflow");
+            let deposit = deposit.unwrap();
+            self.deposits
+                .insert(Self::env().caller(), &DepositInfo { deposit, ..info });
+            self.env().emit_event(Withdrawn {
+                account: self.env().caller(),
+                withdraw_address,
+                amount: withdraw_amount,
+            });
+            let transfer_result = self.env().transfer(withdraw_address, withdraw_amount);
+
+            assert!(transfer_result.is_ok(), "failed to withdraw");
         }
     }
 
+    // TODO:
     /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
     ///
     /// When running these you need to make sure that you:

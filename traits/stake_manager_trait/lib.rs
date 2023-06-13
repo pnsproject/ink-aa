@@ -8,7 +8,9 @@ pub use stake_manager_trait::{
 /// 用于管理存款和抵押的 Ink! 合约特性的模块。
 #[ink::contract(env = env::AccountAbstractionEnvironment)]
 mod stake_manager_trait {
+    use ink::storage::traits::StorageLayout;
     use scale::{Decode, Encode};
+    use scale_info::TypeInfo;
 
     /// StakeManagerTrait 合约的存储结构体。
     #[ink(storage)]
@@ -19,9 +21,9 @@ mod stake_manager_trait {
     pub struct Deposited {
         #[ink(topic)]
         /// 进行存款的账户 ID。
-        account: AccountId,
+        pub account: AccountId,
         /// 存款总额。
-        total_deposit: Balance,
+        pub total_deposit: Balance,
     }
 
     /// 取款成功时触发的事件。
@@ -29,11 +31,11 @@ mod stake_manager_trait {
     pub struct Withdrawn {
         #[ink(topic)]
         /// 进行取款的账户 ID。
-        account: AccountId,
+        pub account: AccountId,
         /// 取款金额将转入的账户 ID。
-        withdraw_address: AccountId,
+        pub withdraw_address: AccountId,
         /// 取款金额。
-        amount: Balance,
+        pub amount: Balance,
     }
 
     /// 抵押成功时触发的事件。
@@ -41,11 +43,11 @@ mod stake_manager_trait {
     pub struct StakeLocked {
         #[ink(topic)]
         /// 进行抵押的账户 ID。
-        account: AccountId,
+        pub account: AccountId,
         /// 抵押总额。
-        total_staked: Balance,
+        pub total_staked: Balance,
         /// 抵押在可取回前需要的延迟时间（秒）。
-        unstake_delay_sec: Timestamp,
+        pub unstake_delay_sec: Timestamp,
     }
 
     /// 取消抵押成功时触发的事件。
@@ -53,9 +55,9 @@ mod stake_manager_trait {
     pub struct StakeUnlocked {
         #[ink(topic)]
         /// 进行取消抵押的账户 ID。
-        account: AccountId,
+        pub account: AccountId,
         /// 抵押可以取回的时间。
-        withdraw_time: Timestamp,
+        pub withdraw_time: Timestamp,
     }
 
     /// 取回抵押成功时触发的事件。
@@ -63,35 +65,37 @@ mod stake_manager_trait {
     pub struct StakeWithdrawn {
         #[ink(topic)]
         /// 进行取回抵押的账户 ID。
-        account: AccountId,
+        pub account: AccountId,
         /// 取回抵押金额将转入的账户 ID。
-        withdraw_address: AccountId,
+        pub withdraw_address: AccountId,
         /// 取回抵押的金额。
-        amount: Balance,
+        pub amount: Balance,
     }
 
     /// 存款信息。
-    #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+    #[derive(
+        Debug, Clone, PartialEq, Eq, Hash, Encode, Decode, StorageLayout, TypeInfo, Default,
+    )]
     pub struct DepositInfo {
         /// 实际存款金额。
-        deposit: Balance,
+        pub deposit: Balance,
         /// 是否已进行抵押。
-        staked: bool,
+        pub staked: bool,
         /// 为此实体抵押的实际以太币金额。
-        stake: Balance,
+        pub stake: Balance,
         /// 抵押在可取回前需要的最短时间（秒）。
-        unstake_delay_sec: Timestamp,
+        pub unstake_delay_sec: Timestamp,
         /// 如果已锁定，则调用 `withdraw_stake` 的第一个块时间戳。如果未锁定，则为零。
-        withdraw_time: Timestamp,
+        pub withdraw_time: Timestamp,
     }
 
     /// 用于 `get_stake_info` 和 `simulate_validation` 的 API 结构体。
     #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
     pub struct StakeInfo {
         /// 抵押的以太币金额。
-        stake: Balance,
+        pub stake: Balance,
         /// 抵押在可取回前需要的延迟时间（秒）。
-        unstake_delay_sec: Timestamp,
+        pub unstake_delay_sec: Timestamp,
     }
 
     /// 用于管理存款和抵押的特性定义。
@@ -127,7 +131,7 @@ mod stake_manager_trait {
         ///
         /// * `account`：要添加存款的账户 ID。
         #[ink(message, payable)]
-        fn deposit_to(&self, account: AccountId);
+        fn deposit_to(&mut self, account: AccountId);
 
         /// 向具有给定延迟的账户添加抵押。
         ///
@@ -137,13 +141,13 @@ mod stake_manager_trait {
         ///
         /// * `unstake_delay_sec`：抵押在可取回前需要的新延迟时间（秒）。
         #[ink(message, payable)]
-        fn add_stake(&self, unstake_delay_sec: Timestamp);
+        fn add_stake(&mut self, unstake_delay_sec: Timestamp);
 
         /// 尝试取消抵押。
         ///
         /// 可以在取回延迟期结束后取回抵押金额。
         #[ink(message)]
-        fn unlock_stake(&self);
+        fn unlock_stake(&mut self);
 
         /// 从已取消抵押的抵押中取回金额。
         ///
@@ -153,7 +157,7 @@ mod stake_manager_trait {
         ///
         /// * `withdraw_address`：要发送取回金额的地址。
         #[ink(message, payable)]
-        fn withdraw_stake(&self, withdraw_address: AccountId);
+        fn withdraw_stake(&mut self, withdraw_address: AccountId);
 
         /// 从存款中取回金额。
         ///
@@ -162,7 +166,7 @@ mod stake_manager_trait {
         /// * `withdraw_address`：要发送取回金额的地址。
         /// * `withdraw_amount`：要取回的金额。
         #[ink(message, payable)]
-        fn withdraw_to(&self, withdraw_address: AccountId, withdraw_amount: Balance);
+        fn withdraw_to(&mut self, withdraw_address: AccountId, withdraw_amount: Balance);
     }
 
     impl StakeManagerTrait {
