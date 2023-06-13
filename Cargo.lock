@@ -962,6 +962,7 @@ name = "entry_point_trait"
 version = "0.1.0"
 dependencies = [
  "aggregator_trait",
+ "env",
  "ink",
  "ink_e2e",
  "nonce_manager_trait",
@@ -969,6 +970,16 @@ dependencies = [
  "scale-info",
  "stake_manager_trait",
  "user_operation",
+]
+
+[[package]]
+name = "env"
+version = "0.1.0"
+dependencies = [
+ "ink",
+ "ink_e2e",
+ "parity-scale-codec",
+ "scale-info",
 ]
 
 [[package]]
@@ -3131,6 +3142,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sender_creator"
+version = "0.1.0"
+dependencies = [
+ "env",
+ "ink",
+ "ink_e2e",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.164"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3666,6 +3688,7 @@ dependencies = [
 name = "stake_manager_trait"
 version = "0.1.0"
 dependencies = [
+ "env",
  "ink",
  "ink_e2e",
  "parity-scale-codec",
