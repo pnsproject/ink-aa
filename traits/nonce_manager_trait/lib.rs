@@ -19,11 +19,7 @@ pub trait INonceManager {
     ///
     /// 返回一个完整的nonce，用于下一个具有该sender的UserOp。
     #[ink(message)]
-    fn get_nonce(
-        &self,
-        sender: <Self::Env as Environment>::AccountId,
-        key: [u8; 24],
-    ) -> <Self::Env as Environment>::Hash;
+    fn get_nonce(&self, sender: <Self::Env as Environment>::AccountId, key: [u8; 24]) -> [u8; 32];
 
     /// 手动增加sender的nonce。
     ///
