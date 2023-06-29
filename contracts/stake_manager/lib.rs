@@ -1,17 +1,72 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-#[ink::contract(env = env::AccountAbstractionEnvironment)]
+#[ink::contract(env = ink_aa::core::env::AAEnvironment)]
 mod stake_manager {
     use ink::codegen::EmitEvent;
     use ink::storage::Mapping;
-    use stake_manager_trait::{
-        DepositInfo, Deposited, IStakeManager, StakeLocked, StakeUnlocked, StakeWithdrawn,
-        Withdrawn,
-    };
+    use ink_aa::core::env::AAEnvironment;
+    use ink_aa::traits::stake_manager::{DepositInfo, IStakeManager};
 
     #[ink(storage)]
     pub struct StakeManager {
-        deposits: Mapping<AccountId, DepositInfo>,
+        deposits: Mapping<AccountId, DepositInfo<AAEnvironment>>,
+    }
+
+    // TODO: 等`event2.0`合并发布之后，转移到`traits`中
+    /// 存款成功时触发的事件。
+    #[ink(event)]
+    pub struct Deposited {
+        #[ink(topic)]
+        /// 进行存款的账户 ID。
+        pub account: AccountId,
+        /// 存款总额。
+        pub total_deposit: Balance,
+    }
+
+    /// 取款成功时触发的事件。
+    #[ink(event)]
+    pub struct Withdrawn {
+        #[ink(topic)]
+        /// 进行取款的账户 ID。
+        pub account: AccountId,
+        /// 取款金额将转入的账户 ID。
+        pub withdraw_address: AccountId,
+        /// 取款金额。
+        pub amount: Balance,
+    }
+
+    /// 抵押成功时触发的事件。
+    #[ink(event)]
+    pub struct StakeLocked {
+        #[ink(topic)]
+        /// 进行抵押的账户 ID。
+        pub account: AccountId,
+        /// 抵押总额。
+        pub total_staked: Balance,
+        /// 抵押在可取回前需要的延迟时间（秒）。
+        pub unstake_delay_sec: Timestamp,
+    }
+
+    /// 取消抵押成功时触发的事件。
+    #[ink(event)]
+    pub struct StakeUnlocked {
+        #[ink(topic)]
+        /// 进行取消抵押的账户 ID。
+        pub account: AccountId,
+        /// 抵押可以取回的时间。
+        pub withdraw_time: Timestamp,
+    }
+
+    /// 取回抵押成功时触发的事件。
+    #[ink(event)]
+    pub struct StakeWithdrawn {
+        #[ink(topic)]
+        /// 进行取回抵押的账户 ID。
+        pub account: AccountId,
+        /// 取回抵押金额将转入的账户 ID。
+        pub withdraw_address: AccountId,
+        /// 取回抵押的金额。
+        pub amount: Balance,
     }
 
     impl StakeManager {
@@ -152,79 +207,6 @@ mod stake_manager {
             let transfer_result = self.env().transfer(withdraw_address, withdraw_amount);
 
             assert!(transfer_result.is_ok(), "failed to withdraw");
-        }
-    }
-
-    // TODO:
-    /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
-    ///
-    /// When running these you need to make sure that you:
-    /// - Compile the tests with the `e2e-tests` feature flag enabled (`--features e2e-tests`)
-    /// - Are running a Substrate node which contains `pallet-contracts` in the background
-    #[cfg(all(test, feature = "e2e-tests"))]
-    mod e2e_tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// A helper function used for calling contract messages.
-        use ink_e2e::build_message;
-
-        /// The End-to-End test `Result` type.
-        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-        /// We test that we can upload and instantiate the contract using its default constructor.
-        #[ink_e2e::test]
-        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = StakeManagerRef::default();
-
-            // When
-            let contract_account_id = client
-                .instantiate("stake_manager", &ink_e2e::alice(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            // Then
-            let get = build_message::<StakeManagerRef>(contract_account_id.clone())
-                .call(|stake_manager| stake_manager.get());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            Ok(())
-        }
-
-        /// We test that we can read and write a value from the on-chain contract contract.
-        #[ink_e2e::test]
-        async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = StakeManagerRef::new(false);
-            let contract_account_id = client
-                .instantiate("stake_manager", &ink_e2e::bob(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            let get = build_message::<StakeManagerRef>(contract_account_id.clone())
-                .call(|stake_manager| stake_manager.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            // When
-            let flip = build_message::<StakeManagerRef>(contract_account_id.clone())
-                .call(|stake_manager| stake_manager.flip());
-            let _flip_result = client
-                .call(&ink_e2e::bob(), flip, 0, None)
-                .await
-                .expect("flip failed");
-
-            // Then
-            let get = build_message::<StakeManagerRef>(contract_account_id.clone())
-                .call(|stake_manager| stake_manager.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), true));
-
-            Ok(())
         }
     }
 }

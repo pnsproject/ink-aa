@@ -12,6 +12,72 @@ mod entry_point {
         value: bool,
     }
 
+    // TODO：等`event2.0`合并发布之后，转移到`traits`下
+    /// 每个成功请求之后发出的事件
+    #[ink(event)]
+    pub struct UserOperationEvent {
+        /// 请求的唯一标识符（哈希其整个内容，除了签名）。
+        #[ink(topic)]
+        pub user_op_hash: [u8; 32],
+        /// 生成此请求的帐户。
+        #[ink(topic)]
+        pub sender: AccountId,
+        /// 如果非空，则为支付此请求的支付账户。
+        #[ink(topic)]
+        pub paymaster: AccountId,
+        /// 请求中使用的nonce。
+        pub nonce: Hash,
+        /// 如果发送方的事务成功，则为true，反之为false。
+        pub success: bool,
+        /// 此UserOperation的实际付款金额（由帐户或支付账户支付）。
+        pub actual_gas_cost: Balance,
+        /// 此UserOperation使用的总气体量（包括preVerification、creation、validation和execution）。
+        pub actual_gas_used: Balance,
+    }
+
+    /// 账户 "sender" 被部署。
+    #[ink(event)]
+    pub struct AccountDeployed {
+        /// 部署此账户的userOp。将跟随UserOperationEvent。
+        #[ink(topic)]
+        pub user_op_hash: [u8; 32],
+        /// 被部署的账户
+        #[ink(topic)]
+        pub sender: AccountId,
+        /// 用于部署此账户的工厂（在 initCode 中）
+        pub factory: AccountId,
+        /// 此 UserOp 所使用的支付账户
+        pub paymaster: AccountId,
+    }
+
+    /// 如果 UserOperation "callData" 返回非零长度，则发出的事件
+    #[ink(event)]
+    pub struct UserOperationRevertReason {
+        /// 请求的唯一标识符。
+        #[ink(topic)]
+        pub user_op_hash: [u8; 32],
+        /// 此请求的发送方
+        #[ink(topic)]
+        pub sender: AccountId,
+        /// 请求中使用的nonce
+        pub nonce: Hash,
+        /// "callData" 的（已还原的）调用返回字节。
+        pub revert_reason: Vec<u8>,
+    }
+
+    /// 在执行循环之前由 handleOps() 发出的事件。
+    /// 在此事件之前发出的任何事件都属于验证。
+    #[ink(event)]
+    pub struct BeforeExecution {}
+
+    /// 在此包中使用的签名聚合器。
+    #[ink(event)]
+    pub struct SignatureAggregatorChanged {
+        /// 签名聚合器
+        #[ink(topic)]
+        pub aggregator: AccountId,
+    }
+
     impl EntryPoint {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
@@ -39,103 +105,6 @@ mod entry_point {
         #[ink(message)]
         pub fn get(&self) -> bool {
             self.value
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let entry_point = EntryPoint::default();
-            assert_eq!(entry_point.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut entry_point = EntryPoint::new(false);
-            assert_eq!(entry_point.get(), false);
-            entry_point.flip();
-            assert_eq!(entry_point.get(), true);
-        }
-    }
-
-    /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
-    ///
-    /// When running these you need to make sure that you:
-    /// - Compile the tests with the `e2e-tests` feature flag enabled (`--features e2e-tests`)
-    /// - Are running a Substrate node which contains `pallet-contracts` in the background
-    #[cfg(all(test, feature = "e2e-tests"))]
-    mod e2e_tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// A helper function used for calling contract messages.
-        use ink_e2e::build_message;
-
-        /// The End-to-End test `Result` type.
-        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-        /// We test that we can upload and instantiate the contract using its default constructor.
-        #[ink_e2e::test]
-        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = EntryPointRef::default();
-
-            // When
-            let contract_account_id = client
-                .instantiate("entry_point", &ink_e2e::alice(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            // Then
-            let get = build_message::<EntryPointRef>(contract_account_id.clone())
-                .call(|entry_point| entry_point.get());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            Ok(())
-        }
-
-        /// We test that we can read and write a value from the on-chain contract contract.
-        #[ink_e2e::test]
-        async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            // Given
-            let constructor = EntryPointRef::new(false);
-            let contract_account_id = client
-                .instantiate("entry_point", &ink_e2e::bob(), constructor, 0, None)
-                .await
-                .expect("instantiate failed")
-                .account_id;
-
-            let get = build_message::<EntryPointRef>(contract_account_id.clone())
-                .call(|entry_point| entry_point.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), false));
-
-            // When
-            let flip = build_message::<EntryPointRef>(contract_account_id.clone())
-                .call(|entry_point| entry_point.flip());
-            let _flip_result = client
-                .call(&ink_e2e::bob(), flip, 0, None)
-                .await
-                .expect("flip failed");
-
-            // Then
-            let get = build_message::<EntryPointRef>(contract_account_id.clone())
-                .call(|entry_point| entry_point.get());
-            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), true));
-
-            Ok(())
         }
     }
 }

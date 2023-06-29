@@ -1,5 +1,3 @@
-#![cfg_attr(not(feature = "std"), no_std, no_main)]
-
 use ink::env::Environment;
 
 /// INonceManager trait定义了管理nonce（一次性密码）的方法。

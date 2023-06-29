@@ -1,8 +1,5 @@
-#![cfg_attr(not(feature = "std"), no_std, no_main)]
-
-use helpers::EnvValidationData;
+use crate::core::{env::AAEnvironment, helpers::ValidationData, user_operation::UserOperation};
 use ink::env::Environment;
-use user_operation::EnvUserOperation;
 
 /// `IAccount` trait 定义了一个账户的接口。
 #[ink::trait_definition]
@@ -41,8 +38,10 @@ pub trait IAccount {
     #[ink(message)]
     fn validate_user_op(
         &self,
-        user_op: EnvUserOperation<Self::Env>,
-        user_op_hash: <Self::Env as Environment>::Hash,
-        missing_account_funds: <Self::Env as Environment>::Balance,
-    ) -> EnvValidationData<Self::Env>;
+        user_op: UserOperation<AAEnvironment>,
+        user_op_hash: Hash<AAEnvironment>,
+        missing_account_funds: Balance<AAEnvironment>,
+    ) -> ValidationData<AAEnvironment>;
 }
+type Hash<E> = <E as Environment>::Hash;
+type Balance<E> = <E as Environment>::Balance;
