@@ -1,9 +1,10 @@
-use ink::env::Environment;
-
 use crate::traits::{
     entry_point::{AggregatorStakeInfo, ReturnInfo},
     stake_manager::StakeInfo,
 };
+use ink::env::Environment;
+use ink::prelude::string::String;
+use ink::prelude::vec::Vec;
 
 use super::env::AAEnvironment;
 

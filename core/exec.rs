@@ -1,3 +1,4 @@
+use super::env::AAEnvironment;
 use ink::env::{
     call::{
         build_call,
@@ -6,8 +7,8 @@ use ink::env::{
     },
     CallFlags, Environment,
 };
-
-use super::env::AAEnvironment;
+use ink::prelude::vec;
+use ink::prelude::vec::Vec;
 
 #[derive(scale::Decode, scale::Encode, Clone, Hash)]
 #[cfg_attr(
@@ -73,14 +74,13 @@ impl<E: Environment> Transaction<E> {
 #[cfg_attr(
     feature = "std",
     derive(
-        Debug,
         PartialEq,
         Eq,
         scale_info::TypeInfo,
         ink::storage::traits::StorageLayout
     )
 )]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OpaqueTypes(pub Vec<u8>);
 
 impl scale::Encode for OpaqueTypes {

@@ -3,11 +3,11 @@
 #[ink::contract]
 mod simple_paymaster {
     use base_paymaster::BasePaymasterTrait;
+    use ink::prelude::vec;
     use ink::prelude::vec::Vec;
     use ink_aa::core::{error::Result, helpers::ValidationData};
     use ink_aa::core::{helpers::Aggregator, user_operation::UserOperation};
     use ink_aa::{core::env::AAEnvironment, traits::paymaster::PostOpMode};
-
     #[ink(storage)]
     pub struct SimplePaymaster;
 

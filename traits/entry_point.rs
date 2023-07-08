@@ -5,6 +5,7 @@ use crate::traits::stake_manager::{IStakeManager, StakeInfo};
 use crate::core::error::Result;
 use ink::codegen::TraitCallForwarder;
 use ink::env::Environment;
+use ink::prelude::vec::Vec;
 use scale::{Decode, Encode};
 
 use super::{account::IAccount, nonce_manager::INonceManager, paymaster::IPaymaster};

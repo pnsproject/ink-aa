@@ -8,6 +8,7 @@ use super::{
     env::AAEnvironment,
     helpers::{keccak256, keccak256_hash},
 };
+use ink::prelude::vec::Vec;
 
 /// `UserOperation` 结构体定义了一个用户操作。
 #[derive(scale::Encode, scale::Decode, Clone, Hash, Debug)]

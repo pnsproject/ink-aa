@@ -111,15 +111,15 @@ mod entry_point {
             stake_manager_code_hash: Hash,
             nonce_manager_code_hash: Hash,
         ) -> Self {
-            let total_balance = Self::env().balance();
+            // let total_balance = Self::env().balance();
             let salt = version.to_le_bytes();
             let stake_manager = stake_manager::StakeManagerRef::new()
-                .endowment(total_balance / 3)
+                .endowment(0)
                 .code_hash(stake_manager_code_hash)
                 .salt_bytes(salt)
                 .instantiate();
             let nonce_manager = nonce_manager::NonceManagerRef::new()
-                .endowment(total_balance / 3)
+                .endowment(0)
                 .code_hash(nonce_manager_code_hash)
                 .salt_bytes(salt)
                 .instantiate();

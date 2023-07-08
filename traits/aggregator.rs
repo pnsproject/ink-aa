@@ -1,5 +1,6 @@
 use crate::core::error::Result;
 use crate::core::{env::AAEnvironment, user_operation::UserOperation};
+use ink::prelude::vec::Vec;
 
 #[ink::trait_definition]
 pub trait IAggregator {
