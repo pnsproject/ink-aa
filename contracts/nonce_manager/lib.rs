@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-#[ink::contract]
+pub use nonce_manager::NonceManagerRef;
+
+#[ink::contract(env = ink_aa::core::env::AAEnvironment)]
 mod nonce_manager {
     use ink::storage::Mapping;
     use ink_aa::traits::nonce_manager::INonceManager;
@@ -23,17 +25,26 @@ mod nonce_manager {
             }
         }
 
-        // fn validateAndUpdateNonce(&mut self,sender: AccountId,nonce: [u8; 32]) -> bool {
-        //     let key = nonce >> 64;
-        //     let seq = u64::from_be_bytes(nonce);
+        #[ink(message)]
+        pub fn validate_and_update_nonce(&mut self, sender: AccountId, nonce: [u8; 32]) -> bool {
+            let mut key = [0; 24];
+            key.copy_from_slice(&nonce[..24]);
+            let seq = nonce;
+            let mut nonce = self.nonce_sequence_number.get((sender, key)).unwrap_or({
+                let mut h = [0; 32];
+                h[..24].copy_from_slice(&key);
+                h
+            });
 
-        //     let mut nonce_sequence_number = self.get_nonce(sender,key);
-        //     increment_bytes(&mut nonce_sequence_number);
-        //     self.nonce_sequence_number
-        //         .insert((sender, key), &nonce_sequence_number);
-
-        //     return nonceSequenceNumber[sender][key]++ == seq;
-        // }
+            if nonce == seq {
+                increment_bytes(&mut nonce);
+                self.nonce_sequence_number
+                    .insert((self.env().caller(), key), &nonce);
+                true
+            } else {
+                false
+            }
+        }
     }
 
     impl INonceManager for NonceManager {

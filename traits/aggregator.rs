@@ -1,3 +1,4 @@
+use crate::core::error::Result;
 use crate::core::{env::AAEnvironment, user_operation::UserOperation};
 
 #[ink::trait_definition]
@@ -11,7 +12,11 @@ pub trait IAggregator {
     /// * `user_ops` - 给定的操作列表。
     /// * `signature` - 聚合签名。
     #[ink(message)]
-    fn validate_signatures(&self, user_ops: Vec<UserOperation<AAEnvironment>>, signature: Vec<u8>);
+    fn validate_signatures(
+        &self,
+        user_ops: Vec<UserOperation<AAEnvironment>>,
+        signature: Vec<u8>,
+    ) -> Result<()>;
 
     /// 验证单个用户操作的签名。
     ///
@@ -26,7 +31,7 @@ pub trait IAggregator {
     ///
     /// 在调用 `handle` 时放入用户操作的签名字段中的值（通常为空，除非账户和聚合器支持某种“多签”）。
     #[ink(message)]
-    fn validate_user_op_signature(&self, user_op: UserOperation<AAEnvironment>) -> Vec<u8>;
+    fn validate_user_op_signature(&self, user_op: UserOperation<AAEnvironment>) -> Result<Vec<u8>>;
 
     /// 将多个签名聚合为单个值。
     ///
@@ -41,5 +46,5 @@ pub trait IAggregator {
     ///
     /// 聚合签名。
     #[ink(message)]
-    fn aggregate_signatures(&self, user_ops: Vec<UserOperation<AAEnvironment>>) -> Vec<u8>;
+    fn aggregate_signatures(&self, user_ops: Vec<UserOperation<AAEnvironment>>) -> Result<Vec<u8>>;
 }

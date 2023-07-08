@@ -2,77 +2,85 @@ use ink::env::{
     call::{
         build_call,
         utils::{Argument, ArgumentList, EmptyArgumentList},
-        CallParams, DelegateCall, ExecutionInput, Selector,
+        Call, CallParams, ExecutionInput,
     },
     CallFlags, Environment,
 };
 
-#[derive(scale::Encode, scale::Decode, Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub struct Call<E: Environment> {
-    pub forward_input: bool,
-    pub clone_input: bool,
-    pub tail_call: bool,
-    pub allow_reentry: bool,
-    pub code_hash: E::Hash,
+use super::env::AAEnvironment;
+
+#[derive(scale::Decode, scale::Encode, Clone, Hash)]
+#[cfg_attr(
+    feature = "std",
+    derive(
+        Debug,
+        PartialEq,
+        Eq,
+        scale_info::TypeInfo,
+        ink::storage::traits::StorageLayout
+    )
+)]
+pub struct Transaction<E: Environment = AAEnvironment> {
+    /// The `AccountId` of the contract that is called in this transaction.
+    pub callee: E::AccountId,
+    /// The selector bytes that identifies the function of the callee that should be
+    /// called.
     pub selector: [u8; 4],
-    pub opaque_agrs: OpaqueTypes,
+    /// The SCALE encoded parameters that are passed to the called function.
+    pub input: Vec<u8>,
+    /// The amount of chain balance that is transferred to the callee.
+    pub transferred_value: E::Balance,
+    /// Gas limit for the execution of the call.
+    pub gas_limit: u64,
+    /// If set to true the transaction will be allowed to re-enter the multisig
+    /// contract. Re-entrancy can lead to vulnerabilities. Use at your own
+    /// risk.
+    pub allow_reentry: bool,
 }
 
-impl<E: Environment> Call<E> {
-    #[inline]
-    pub fn from_typed<Args: scale::Encode>(
-        code_hash: E::Hash,
-        selector: [u8; 4],
-        args: &Args,
-    ) -> Self {
-        Self::new(
-            code_hash,
-            selector,
-            OpaqueTypes(scale::Encode::encode(args)),
-        )
-    }
+type Args = ArgumentList<Argument<OpaqueTypes>, EmptyArgumentList>;
 
-    #[inline]
-    pub fn new(code_hash: E::Hash, selector: [u8; 4], opaque_agrs: OpaqueTypes) -> Self {
+impl<E: Environment> Transaction<E> {
+    pub fn new(
+        callee: E::AccountId,
+        selector: [u8; 4],
+        call_data: Vec<u8>,
+        gas_limit: u64,
+    ) -> Self {
+        use num_traits::identities::Zero;
         Self {
-            forward_input: false,
-            clone_input: false,
-            tail_call: false,
-            allow_reentry: false,
-            code_hash,
+            callee,
             selector,
-            opaque_agrs,
+            input: call_data,
+            gas_limit,
+            // TODO:
+            transferred_value: E::Balance::zero(),
+            allow_reentry: false,
         }
     }
-
-    pub fn set_forward_input(mut self, forward_input: bool) -> Self {
-        self.forward_input = forward_input;
-        self
-    }
-
-    pub fn set_clone_input(mut self, clone_input: bool) -> Self {
-        self.clone_input = clone_input;
-        self
-    }
-
-    pub fn set_tail_call(mut self, tail_call: bool) -> Self {
-        self.tail_call = tail_call;
-        self
-    }
-
-    pub fn set_allow_reentry(mut self, allow_reentry: bool) -> Self {
-        self.allow_reentry = allow_reentry;
-        self
-    }
-
-    pub fn into_call_params(self) -> CallParams<E, DelegateCall<E>, Args, OpaqueTypes> {
-        self.into()
+    pub fn call(self) -> CallParams<E, Call<E>, Args, OpaqueTypes> {
+        build_call::<E>()
+            .call(self.callee)
+            .gas_limit(self.gas_limit)
+            .transferred_value(self.transferred_value)
+            .call_flags(CallFlags::default().set_allow_reentry(self.allow_reentry))
+            .exec_input(ExecutionInput::new(self.selector.into()).push_arg(OpaqueTypes(self.input)))
+            .returns::<OpaqueTypes>()
+            .params()
     }
 }
 
-#[derive(Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(
+    feature = "std",
+    derive(
+        Debug,
+        PartialEq,
+        Eq,
+        scale_info::TypeInfo,
+        ink::storage::traits::StorageLayout
+    )
+)]
+#[derive(Clone)]
 pub struct OpaqueTypes(pub Vec<u8>);
 
 impl scale::Encode for OpaqueTypes {
@@ -111,50 +119,23 @@ impl scale::Decode for OpaqueTypes {
     }
 }
 
-type Args = ArgumentList<Argument<OpaqueTypes>, EmptyArgumentList>;
-
-impl<E: Environment> Into<CallParams<E, DelegateCall<E>, Args, OpaqueTypes>> for Call<E> {
-    fn into(self) -> CallParams<E, DelegateCall<E>, Args, OpaqueTypes> {
-        let Call {
-            forward_input,
-            clone_input,
-            tail_call,
-            allow_reentry,
-            code_hash,
-            selector,
-            opaque_agrs,
-            ..
-        } = self;
-        let call = build_call::<E>()
-            .call_flags(
-                CallFlags::default()
-                    .set_allow_reentry(allow_reentry)
-                    .set_clone_input(clone_input)
-                    .set_forward_input(forward_input)
-                    .set_tail_call(tail_call),
-            )
-            .call_type(DelegateCall::<E>::new(code_hash))
-            .exec_input(ExecutionInput::new(Selector::new(selector)).push_arg(opaque_agrs))
-            .returns::<OpaqueTypes>();
-
-        call.params()
-    }
-}
-
 #[cfg(test)]
 
 mod tests {
-    use ink::{env::DefaultEnvironment, primitives::Hash};
-
     use super::*;
+    use ink::env::DefaultEnvironment;
+    use ink::prelude::vec;
 
     #[test]
     fn test_call() {
-        let call: Call<DefaultEnvironment> = Call::new(
-            Hash::from([1; 32]),
-            [2; 4],
-            OpaqueTypes(vec![1, 2, 3, 4, 5]),
-        );
+        let call: Transaction<DefaultEnvironment> = Transaction {
+            callee: [0u8; 32].into(),
+            selector: [0u8; 4].into(),
+            input: vec![1, 2, 3, 4, 5, 6],
+            transferred_value: 1,
+            gas_limit: 1,
+            allow_reentry: false,
+        };
         println!("{call:?}");
     }
     #[test]

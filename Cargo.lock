@@ -262,6 +262,7 @@ dependencies = [
 name = "base_paymaster"
 version = "0.1.0"
 dependencies = [
+ "entry_point",
  "ink",
  "ink-aa",
  "ink_e2e",
@@ -933,8 +934,10 @@ dependencies = [
  "ink",
  "ink-aa",
  "ink_e2e",
+ "nonce_manager",
  "parity-scale-codec",
  "scale-info",
+ "stake_manager",
 ]
 
 [[package]]
@@ -1543,6 +1546,7 @@ name = "ink-aa"
 version = "0.1.0"
 dependencies = [
  "ink",
+ "num-traits",
  "parity-scale-codec",
  "scale-info",
 ]
@@ -2624,6 +2628,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "recover_sig"
+version = "0.1.0"
+dependencies = [
+ "base_account",
+ "ink",
+ "ink-aa",
+ "ink_e2e",
+ "parity-scale-codec",
+ "scale-info",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3206,6 +3222,18 @@ name = "signature"
 version = "1.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
+
+[[package]]
+name = "simple_paymaster"
+version = "0.1.0"
+dependencies = [
+ "base_paymaster",
+ "ink",
+ "ink-aa",
+ "ink_e2e",
+ "parity-scale-codec",
+ "scale-info",
+]
 
 [[package]]
 name = "slab"

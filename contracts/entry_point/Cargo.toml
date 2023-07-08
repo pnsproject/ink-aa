@@ -18,7 +18,8 @@ ink = { workspace = true, default-features = false }
 
 scale = { package = "parity-scale-codec", workspace = true, default-features = false, features = ["derive"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"], optional = true }
-
+stake_manager = { path = "../stake_manager", default-features = false, features = ["ink-as-dependency"] }
+nonce_manager = { path = "../nonce_manager", default-features = false, features = ["ink-as-dependency"] }
 
 [features]
 default = ["std"]

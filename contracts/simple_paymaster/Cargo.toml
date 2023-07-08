@@ -1,10 +1,8 @@
 [package]
-name = "base_paymaster"
+name = "simple_paymaster"
 version = "0.1.0"
 authors = ["[your_name] <[your_email]>"]
 edition = "2021"
-
-
 [dev-dependencies]
 ink_e2e.workspace = true
 
@@ -18,7 +16,9 @@ ink = { workspace = true, default-features = false }
 
 scale = { package = "parity-scale-codec", workspace = true, default-features = false, features = ["derive"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"], optional = true }
-entry_point = { path = "../entry_point", default-features = false, features = ["ink-as-dependency"] }
+
+base_paymaster = { path = "../base_paymaster", default-features = false, features = ["ink-as-dependency"] }
+
 
 [features]
 default = ["std"]
