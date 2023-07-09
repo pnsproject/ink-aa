@@ -3,6 +3,7 @@
 #[ink::contract(env = ink_aa::core::env::AAEnvironment)]
 mod sender_creator {
     use core::mem::size_of;
+    use ink::prelude::vec::Vec;
 
     #[ink(storage)]
     pub struct SenderCreator;

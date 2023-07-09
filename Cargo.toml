@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["contracts/*"]
+members = ["contracts/*", "xtask"]
 
 [dependencies]
 ink = { version = "4.2.0", default-features = false }
@@ -22,6 +22,8 @@ std = ["ink/std", "scale/std", "scale-info/std", "num-traits/std"]
 ink-as-dependency = []
 e2e-tests = []
 
+[dev-dependencies]
+hex = "0.4"
 
 [lib]
 name = "ink_aa"

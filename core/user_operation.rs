@@ -15,10 +15,13 @@ use ink::prelude::vec::Vec;
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct UserOperation<E: Environment = AAEnvironment> {
     /// 发送人的账户 ID。
+    /// 必须是钱包，即实现了IAccount接口的合约地址
     pub sender: E::AccountId,
     /// 用户操作的随机数。
+    /// 目前不影响最终结果
     pub nonce: [u8; 32],
     /// 要在合约上创建的代码的字节数组。
+    /// 目前不影响最终结果
     pub init_code: Vec<u8>,
     /// 要调用的合约地址。
     pub callee: E::AccountId,
@@ -38,9 +41,11 @@ pub struct UserOperation<E: Environment = AAEnvironment> {
     pub max_priority_fee_per_gas: u64,
     /// 付款人的地址。
     pub paymaster: E::AccountId,
-    //  付款人的数据。
+    /// 付款人的数据。
+    /// 目前不影响最终结果
     pub paymaster_data: Vec<u8>,
     /// 用户操作的签名。
+    /// 目前不影响最终结果
     pub signature: Vec<u8>,
 }
 

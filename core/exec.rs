@@ -123,12 +123,23 @@ impl scale::Decode for OpaqueTypes {
 
 mod tests {
     use super::*;
-    use ink::env::DefaultEnvironment;
+    use crate::core::env::AAEnvironment;
     use ink::prelude::vec;
 
     #[test]
+    fn gen_call_data() {
+        use scale::Encode;
+        let accounts = ink::env::test::default_accounts::<AAEnvironment>();
+
+        let call_data = (accounts.bob, accounts.eve, 100u128).encode();
+        println!("{:?}", call_data);
+        let output = hex::encode(call_data);
+        println!("{:?}", output);
+    }
+
+    #[test]
     fn test_call() {
-        let call: Transaction<DefaultEnvironment> = Transaction {
+        let call: Transaction<AAEnvironment> = Transaction {
             callee: [0u8; 32].into(),
             selector: [0u8; 4].into(),
             input: vec![1, 2, 3, 4, 5, 6],
