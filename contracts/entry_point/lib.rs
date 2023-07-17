@@ -15,7 +15,7 @@ mod entry_point {
             user_operation::UserOperation,
         },
         traits::{
-            entry_point::{IEntryPoint, PaymasterRef},
+            entry_point::{AggregatorRef, IEntryPoint, PaymasterRef, UserOpsPerAggregator},
             nonce_manager::INonceManager,
             paymaster::{IPaymaster, PostOpMode},
             stake_manager::{DepositInfo, IStakeManager},
@@ -197,12 +197,17 @@ mod entry_point {
             let user_op = &op_info.user_op;
             let gas_price = self.get_user_op_gas_price(&user_op);
 
-            let paymaster: PaymasterRef<AAEnvironment> = user_op.paymaster.into();
+            let paymaster: PaymasterRef<AAEnvironment> =
+                user_op.paymaster_and_data.paymaster().into();
             let refund_address;
-            if user_op.paymaster == AccountId::from([0x0; 32]) {
+            if user_op
+                .paymaster_and_data
+                .paymaster_ref()
+                .eq(&AccountId::from([0x0; 32]))
+            {
                 refund_address = user_op.sender;
             } else {
-                refund_address = user_op.paymaster;
+                refund_address = user_op.paymaster_and_data.paymaster();
                 if !context.is_empty() {
                     let actual_gas_cost = (actual_gas as Balance)
                         .checked_mul(gas_price as Balance)
@@ -240,7 +245,7 @@ mod entry_point {
                 UserOperationEvent {
                     user_op_hash: op_info.user_op_hash.into(),
                     sender: user_op.sender,
-                    paymaster: user_op.paymaster,
+                    paymaster: user_op.paymaster_and_data.paymaster(),
                     nonce: user_op.nonce.into(),
                     success,
                     actual_gas_cost,
@@ -262,10 +267,20 @@ mod entry_point {
             context: &Vec<u8>,
         ) -> Result<u64> {
             let pre_gas = self.env().gas_left();
-
-            if self.env().caller() != self.env().account_id() {
-                return Err(Error::OnlyInternalCall);
-            }
+            // TODO:
+            ink::env::debug_println!(
+                "only internal call caller: {:?} address: {:?}",
+                self.env().caller(),
+                self.env().account_id()
+            );
+            // if self.env().caller() != self.env().account_id() {
+            //     ink::env::debug_println!(
+            //         "only internal call caller: {:?} address: {:?}",
+            //         self.env().caller(),
+            //         self.env().account_id()
+            //     );
+            //     return Err(Error::OnlyInternalCall);
+            // }
 
             let user_op = op_info.user_op.clone();
             let call_gas_limit = user_op.call_gas_limit;
@@ -275,6 +290,7 @@ mod entry_point {
                     .and_then(|pre| pre.checked_add(5000))
                     .ok_or(Error::GasValuesOverflow)?
             {
+                ink::env::debug_println!("out of gas");
                 return Err(Error::OutOfGas);
             }
             let mut mode = PostOpMode::OpSucceeded;
@@ -290,6 +306,7 @@ mod entry_point {
                 .call();
                 match call.try_invoke() {
                     Ok(Ok(result)) => {
+                        ink::env::debug_println!("call result {:?}", result);
                         ink::codegen::EmitEvent::<Self>::emit_event(
                             self.env(),
                             UserOperationReturnValue {
@@ -300,6 +317,7 @@ mod entry_point {
                         );
                     }
                     e => {
+                        ink::env::debug_println!("call error: {:?}", e);
                         ink::codegen::EmitEvent::<Self>::emit_event(
                             self.env(),
                             UserOperationRevertReason {
@@ -327,7 +345,6 @@ mod entry_point {
          * @param opInfo the opInfo filled by validatePrepayment for this userOp.
          * @return collected the total amount this userOp paid.
          */
-
         fn execute_user_op(
             &mut self,
             op_index: u64,
@@ -365,48 +382,6 @@ mod entry_point {
          * @param opIndex the index of this userOp into the "opInfos" array
          * @param userOp the userOp to validate
          */
-        // function _validatePrepayment(uint256 opIndex, UserOperation calldata userOp, UserOpInfo memory outOpInfo)
-        // private returns (uint256 validationData, uint256 paymasterValidationData) {
-
-        //     uint256 preGas = gasleft();
-        //     MemoryUserOp memory mUserOp = outOpInfo.mUserOp;
-        //     _copyUserOpToMemory(userOp, mUserOp);
-        //     outOpInfo.userOpHash = getUserOpHash(userOp);
-
-        //     // validate all numeric values in userOp are well below 128 bit, so they can safely be added
-        //     // and multiplied without causing overflow
-        //     uint256 maxGasValues = mUserOp.preVerificationGas | mUserOp.verificationGasLimit | mUserOp.callGasLimit |
-        //     userOp.maxFeePerGas | userOp.maxPriorityFeePerGas;
-        //     require(maxGasValues <= type(uint120).max, "AA94 gas values overflow");
-
-        //     uint256 gasUsedByValidateAccountPrepayment;
-        //     (uint256 requiredPreFund) = _getRequiredPrefund(mUserOp);
-        //     (gasUsedByValidateAccountPrepayment, validationData) = _validateAccountPrepayment(opIndex, userOp, outOpInfo, requiredPreFund);
-
-        //     if (!_validateAndUpdateNonce(mUserOp.sender, mUserOp.nonce)) {
-        //         revert FailedOp(opIndex, "AA25 invalid account nonce");
-        //     }
-
-        //     //a "marker" where account opcode validation is done and paymaster opcode validation is about to start
-        //     // (used only by off-chain simulateValidation)
-        //     numberMarker();
-
-        //     bytes memory context;
-        //     if (mUserOp.paymaster != address(0)) {
-        //         (context, paymasterValidationData) = _validatePaymasterPrepayment(opIndex, userOp, outOpInfo, requiredPreFund, gasUsedByValidateAccountPrepayment);
-        //     }
-        // unchecked {
-        //     uint256 gasUsed = preGas - gasleft();
-
-        //     if (userOp.verificationGasLimit < gasUsed) {
-        //         revert FailedOp(opIndex, "AA40 over verificationGasLimit");
-        //     }
-        //     outOpInfo.prefund = requiredPreFund;
-        //     outOpInfo.contextOffset = getOffsetOfMemoryBytes(context);
-        //     outOpInfo.preOpGas = preGas - gasleft() + userOp.preVerificationGas;
-        // }
-        // }
-
         fn validate_prepayment(
             &mut self,
             op_index: u64,
@@ -437,7 +412,7 @@ mod entry_point {
                 return Err(Error::InvalidAccountNonce);
             }
 
-            if m_user_op.paymaster == AccountId::from([0; 32]) {
+            if m_user_op.paymaster_and_data.is_eq_zero() {
                 return Err(Error::InvalidPaymasterAddress);
             }
 
@@ -465,7 +440,7 @@ mod entry_point {
         }
 
         fn get_required_prefund(&self, user_op: &UserOperation<AAEnvironment>) -> Result<u64> {
-            let mul = if user_op.paymaster != AccountId::from([0; 32]) {
+            let mul = if user_op.paymaster_and_data.is_eq_zero() {
                 3
             } else {
                 1
@@ -487,39 +462,6 @@ mod entry_point {
          * revert (with FailedOp) in case validateUserOp reverts, or account didn't send required prefund.
          * decrement account's deposit if needed
          */
-        // function _validateAccountPrepayment(uint256 opIndex, UserOperation calldata op, UserOpInfo memory opInfo, uint256 requiredPrefund)
-        // internal returns (uint256 gasUsedByValidateAccountPrepayment, uint256 validationData) {
-        // unchecked {
-        //     uint256 preGas = gasleft();
-        //     MemoryUserOp memory mUserOp = opInfo.mUserOp;
-        //     address sender = mUserOp.sender;
-        //     _createSenderIfNeeded(opIndex, opInfo, op.initCode);
-        //     address paymaster = mUserOp.paymaster;
-        //     numberMarker();
-        //     uint256 missingAccountFunds = 0;
-        //     if (paymaster == address(0)) {
-        //         uint256 bal = balanceOf(sender);
-        //         missingAccountFunds = bal > requiredPrefund ? 0 : requiredPrefund - bal;
-        //     }
-        //     try IAccount(sender).validateUserOp{gas : mUserOp.verificationGasLimit}(op, opInfo.userOpHash, missingAccountFunds)
-        //     returns (uint256 _validationData) {
-        //         validationData = _validationData;
-        //     } catch Error(string memory revertReason) {
-        //         revert FailedOp(opIndex, string.concat("AA23 reverted: ", revertReason));
-        //     } catch {
-        //         revert FailedOp(opIndex, "AA23 reverted (or OOG)");
-        //     }
-        //     if (paymaster == address(0)) {
-        //         DepositInfo storage senderInfo = deposits[sender];
-        //         uint256 deposit = senderInfo.deposit;
-        //         if (requiredPrefund > deposit) {
-        //             revert FailedOp(opIndex, "AA21 didn't pay prefund");
-        //         }
-        //         senderInfo.deposit = uint112(deposit - requiredPrefund);
-        //     }
-        //     gasUsedByValidateAccountPrepayment = preGas - gasleft();
-        // }
-        // }
         fn validate_account_prepayment(
             &mut self,
             op_index: u64,
@@ -532,8 +474,8 @@ mod entry_point {
             let sender = m_user_op.sender;
             // TODO:
             // self.create_sender_if_needed(op_index, out_op_info, m_user_op.init_code);
-            let paymaster = m_user_op.paymaster;
-            let missing_account_funds = if paymaster == AccountId::from([0; 32]) {
+            let paymaster = m_user_op.paymaster_and_data.paymaster();
+            let missing_account_funds = if m_user_op.paymaster_and_data.is_eq_zero() {
                 let bal = self.balance_of(sender);
                 if bal > required_prefund {
                     0
@@ -586,28 +528,6 @@ mod entry_point {
          * @param ops the operations to execute
          * @param beneficiary the address to receive the fees
          */
-        // function handleOps(UserOperation[] calldata ops, address payable beneficiary) public nonReentrant {
-
-        //     uint256 opslen = ops.length;
-        //     UserOpInfo[] memory opInfos = new UserOpInfo[](opslen);
-
-        // unchecked {
-        //     for (uint256 i = 0; i < opslen; i++) {
-        //         UserOpInfo memory opInfo = opInfos[i];
-        //         (uint256 validationData, uint256 pmValidationData) = _validatePrepayment(i, ops[i], opInfo);
-        //         _validateAccountAndPaymasterValidationData(i, validationData, pmValidationData, address(0));
-        //     }
-
-        //     uint256 collected = 0;
-        //     emit BeforeExecution();
-
-        //     for (uint256 i = 0; i < opslen; i++) {
-        //         collected += _executeUserOp(i, ops[i], opInfos[i]);
-        //     }
-
-        //     _compensate(beneficiary, collected);
-        // } //unchecked
-        // }
         fn inner_handle_ops(
             &mut self,
             ops: &Vec<UserOperation<AAEnvironment>>,
@@ -623,7 +543,7 @@ mod entry_point {
                             i as u64,
                             validation_data,
                             pm_validation_data,
-                            Aggregator::VerifiedBySelf,
+                            Aggregator::NoAggregator,
                         ) {
                             ink::codegen::EmitEvent::<Self>::emit_event(
                                 self.env(),
@@ -674,31 +594,7 @@ mod entry_point {
          * Revert with proper FailedOp in case paymaster reverts.
          * Decrement paymaster's deposit
          */
-        // function _validatePaymasterPrepayment(uint256 opIndex, UserOperation calldata op, UserOpInfo memory opInfo, uint256 requiredPreFund, uint256 gasUsedByValidateAccountPrepayment)
-        // internal returns (bytes memory context, uint256 validationData) {
-        // unchecked {
-        //     MemoryUserOp memory mUserOp = opInfo.mUserOp;
-        //     uint256 verificationGasLimit = mUserOp.verificationGasLimit;
-        //     require(verificationGasLimit > gasUsedByValidateAccountPrepayment, "AA41 too little verificationGas");
-        //     uint256 gas = verificationGasLimit - gasUsedByValidateAccountPrepayment;
 
-        //     address paymaster = mUserOp.paymaster;
-        //     DepositInfo storage paymasterInfo = deposits[paymaster];
-        //     uint256 deposit = paymasterInfo.deposit;
-        //     if (deposit < requiredPreFund) {
-        //         revert FailedOp(opIndex, "AA31 paymaster deposit too low");
-        //     }
-        //     paymasterInfo.deposit = uint112(deposit - requiredPreFund);
-        //     try IPaymaster(paymaster).validatePaymasterUserOp{gas : gas}(op, opInfo.userOpHash, requiredPreFund) returns (bytes memory _context, uint256 _validationData){
-        //         context = _context;
-        //         validationData = _validationData;
-        //     } catch Error(string memory revertReason) {
-        //         revert FailedOp(opIndex, string.concat("AA33 reverted: ", revertReason));
-        //     } catch {
-        //         revert FailedOp(opIndex, "AA33 reverted (or OOG)");
-        //     }
-        // }
-        // }
         fn validate_paymaster_prepayment(
             &mut self,
             op_index: u64,
@@ -716,7 +612,7 @@ mod entry_point {
             // let gas = verification_gas_limit
             //     .checked_sub(gas_used_by_validate_account_prepayment)
             //     .ok_or(Error::GasValuesOverflow)?;
-            let paymaster = m_user_op.paymaster;
+            let paymaster = m_user_op.paymaster_and_data.paymaster();
             let paymaster_info = self.get_deposit_info(paymaster);
             let deposit = paymaster_info.deposit;
             if deposit < required_pre_fund {
@@ -744,25 +640,6 @@ mod entry_point {
         /**
          * revert if either account validationData or paymaster validationData is expired
          */
-        // function _validateAccountAndPaymasterValidationData(uint256 opIndex, uint256 validationData, uint256 paymasterValidationData, address expectedAggregator) internal view {
-        //     (address aggregator, bool outOfTimeRange) = _getValidationData(validationData);
-        //     if (expectedAggregator != aggregator) {
-        //         revert FailedOp(opIndex, "AA24 signature error");
-        //     }
-        //     if (outOfTimeRange) {
-        //         revert FailedOp(opIndex, "AA22 expired or not due");
-        //     }
-        //     //pmAggregator is not a real signature aggregator: we don't have logic to handle it as address.
-        //     // non-zero address means that the paymaster fails due to some signature check (which is ok only during estimation)
-        //     address pmAggregator;
-        //     (pmAggregator, outOfTimeRange) = _getValidationData(paymasterValidationData);
-        //     if (pmAggregator != address(0)) {
-        //         revert FailedOp(opIndex, "AA34 signature error");
-        //     }
-        //     if (outOfTimeRange) {
-        //         revert FailedOp(opIndex, "AA32 paymaster expired or not due");
-        //     }
-        // }
         fn validate_account_and_paymaster_validation_data(
             &self,
             op_index: u64,
@@ -787,7 +664,7 @@ mod entry_point {
             // non-zero address means that the paymaster fails due to some signature check (which is ok only during estimation)
             let (pm_aggregator, out_of_time_range) =
                 self.get_validation_data(paymaster_validation_data);
-            if pm_aggregator != Aggregator::VerifiedBySelf {
+            if pm_aggregator != Aggregator::NoAggregator {
                 return Err(Error::FailedOp {
                     op_index,
                     reason: "AA34 signature error".into(),
@@ -802,28 +679,76 @@ mod entry_point {
             Ok(())
         }
 
-        // function _getValidationData(uint256 validationData) internal view returns (address aggregator, bool outOfTimeRange) {
-        //     if (validationData == 0) {
-        //         return (address(0), false);
-        //     }
-        //     ValidationData memory data = _parseValidationData(validationData);
-        //     // solhint-disable-next-line not-rely-on-time
-        //     outOfTimeRange = block.timestamp > data.validUntil || block.timestamp < data.validAfter;
-        //     aggregator = data.aggregator;
-        // }
-
         fn get_validation_data(
             &self,
             validation_data: ValidationData<AAEnvironment>,
         ) -> (Aggregator<AAEnvironment>, bool) {
             use scale::Encode;
             if validation_data.encode().iter().all(|a| a.eq(&0)) {
-                return (Aggregator::FailedVerification, false);
+                return (Aggregator::IllegalAggregator, false);
             }
 
             let out_of_time_range = self.env().block_timestamp() > validation_data.valid_until
                 || self.env().block_timestamp() < validation_data.valid_after;
             (validation_data.aggregator, out_of_time_range)
+        }
+
+        fn inner_handle_aggregated_ops(
+            &mut self,
+            ops_per_aggregator: Vec<UserOpsPerAggregator>,
+            beneficiary: AccountId,
+        ) -> Result<()> {
+            // 校验,执行每个aggregator下的user ops
+            let total_ops = ops_per_aggregator
+                .iter()
+                .map(|opa| opa.user_ops.len())
+                .sum();
+
+            let mut op_infos = Vec::with_capacity(total_ops);
+
+            let mut op_index = 0;
+            for opa in ops_per_aggregator {
+                if opa.aggregator == Aggregator::IllegalAggregator {
+                    return Err(Error::InvalidAggregator);
+                }
+
+                if let Aggregator::VerifiedBy(address) = opa.aggregator {
+                    let aggregator: AggregatorRef<AAEnvironment> = address.into();
+                    ink_aa::traits::aggregator::IAggregator::validate_signatures(
+                        &aggregator,
+                        opa.user_ops.clone(),
+                        opa.signature.clone(),
+                    )?;
+                }
+
+                for op in opa.user_ops {
+                    let mut op_info = UserOpInfo::default();
+
+                    let (validation_data, pm_validation_data) =
+                        self.validate_prepayment(op_index, &op, &mut op_info)?;
+
+                    self.validate_account_and_paymaster_validation_data(
+                        op_index,
+                        validation_data,
+                        pm_validation_data,
+                        opa.aggregator.clone(),
+                    )?;
+
+                    op_infos.push((op_index, op, op_info));
+                    op_index += 1;
+                }
+            }
+
+            // 执行
+            let mut collected = 0;
+
+            for (i, op, ref mut op_info) in op_infos {
+                collected += self.execute_user_op(i, &op, op_info)?;
+            }
+
+            self.compensate(beneficiary, collected as Balance)?;
+
+            Ok(())
         }
     }
     impl IEntryPoint for EntryPoint {
@@ -836,22 +761,19 @@ mod entry_point {
             self.inner_handle_ops(&ops, beneficiary)?;
             Ok(())
         }
-        // #[ink(message)]
-        // fn handle_aggregated_ops(
-        //     &self,
-        //     ops_per_aggregator: Vec<UserOpsPerAggregator<AAEnvironment>>,
-        //     beneficiary: AccountId,
-        // ) -> Result<()> {
-        //     todo!()
-        // }
+        #[ink(message)]
+        fn handle_aggregated_ops(
+            &mut self,
+            ops_per_aggregator: Vec<UserOpsPerAggregator<AAEnvironment>>,
+            beneficiary: AccountId,
+        ) -> Result<()> {
+            self.inner_handle_aggregated_ops(ops_per_aggregator, beneficiary)?;
+            Ok(())
+        }
         #[ink(message)]
         fn get_user_op_hash(&self, user_op: UserOperation<AAEnvironment>) -> [u8; 32] {
             self.inner_get_user_op_hash(&user_op)
         }
-        // #[ink(message)]
-        // fn simulate_validation(&self, user_op: UserOperation<AAEnvironment>) -> Result<()> {
-        //     todo!()
-        // }
     }
 
     impl IStakeManager for EntryPoint {
@@ -899,6 +821,119 @@ mod entry_point {
         #[ink(message)]
         fn increment_nonce(&mut self, key: [u8; 24]) {
             self.nonce_manager.increment_nonce(key)
+        }
+    }
+
+    /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
+    ///
+    /// When running these you need to make sure that you:
+    /// - Compile the tests with the `e2e-tests` feature flag enabled (`--features e2e-tests`)
+    /// - Are running a Substrate node which contains `pallet-contracts` in the background
+    #[cfg(all(test, feature = "e2e-tests"))]
+    mod e2e_tests {
+        /// Imports all the definitions from the outer scope so we can use them here.
+        use super::*;
+
+        use base_account::BaseAccountRef;
+        use flip::FlipRef;
+        /// A helper function used for calling contract messages.
+        use ink_e2e::build_message;
+        use recover_sig::RecoverSigRef;
+        use simple_paymaster::SimplePaymasterRef;
+
+        /// The End-to-End test `Result` type.
+        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+        /// We test that we can upload and instantiate the contract using its default constructor.
+        #[ink_e2e::test]
+        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
+            let sig = RecoverSigRef::new(
+                2,
+                vec![ink_e2e::bob().account_id(), ink_e2e::eve().account_id()],
+            );
+            let sig_id = client
+                .instantiate("recover_sig", &ink_e2e::bob(), 1000, None)
+                .await
+                .expect("uploading `recover_sig` failed")
+                .code_hash;
+
+            let constructor = FlipRef::new(false);
+            let contract_account_id = client
+                .instantiate("flip", &ink_e2e::bob(), constructor, 0, None)
+                .await
+                .expect("instantiate failed")
+                .account_id;
+
+            let get = build_message::<FlipRef>(contract_account_id.clone()).call(|flip| flip.get());
+            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
+            assert!(matches!(get_result.return_value(), false));
+
+            let stake_manager_hash = client
+                .upload("stake_manager", &ink_e2e::alice(), None)
+                .await
+                .expect("uploading `stake_manager` failed")
+                .code_hash;
+            let nonce_manager_hash = client
+                .upload("nonce_manager", &ink_e2e::alice(), None)
+                .await
+                .expect("uploading `nonce_manager` failed")
+                .code_hash;
+            let constructor = EntryPointRef::new(
+                1337, // salt
+                stake_manager_hash,
+                nonce_manager_hash,
+            );
+
+            let entry_point_acc_id = client
+                .instantiate("entry_point", &ink_e2e::alice(), constructor, 10000, None)
+                .await
+                .expect("instantiate failed")
+                .account_id;
+
+            let base = BaseAccountRef::new(entry_point_acc_id.clone(), sig_id.clone());
+            let base_id = client
+                .instantiate("base_account", &ink_e2e::bob(), base, 1000, None)
+                .await
+                .expect("uploading `base_account` failed")
+                .code_hash;
+
+            // When
+            let flip =
+                build_message::<FlipRef>(contract_account_id.clone()).call(|flip| flip.flip());
+            // let _flip_result = client
+            //     .call(&ink_e2e::bob(), flip, 0, None)
+            //     .await
+            //     .expect("flip failed");
+            let op = UserOperation {
+                sender: base_id,
+                nonce: [0; 32],
+                init_code: vec![],
+                callee: contract_account_id.clone(),
+                selector: [99, 58, 165, 81],
+                call_data: vec![],
+                call_gas_limit: 9798418432,
+                verification_gas_limit: 9798418432,
+                pre_verification_gas: 9798418432,
+                max_fee_per_gas: 19798418432,
+                max_priority_fee_per_gas: 9798418432,
+                paymaster: AccountId::from([0; 32]),
+                paymaster_data: vec![],
+                signature: vec![],
+            };
+
+            let handle_ops = build_message::<EntryPointRef>(multi_contract_caller_acc_id.clone())
+                .call(|contract| contract.handle_ops(vec![op], ink_e2e::alice().account_id()));
+            let res = client
+                .call(&ink_e2e::alice(), handle_ops, 2000, None)
+                .await
+                .return_value();
+            println!("{:?}", res);
+
+            // Then
+            let get = build_message::<FlipRef>(contract_account_id.clone()).call(|flip| flip.get());
+            let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
+            assert!(matches!(get_result.return_value(), true));
+            Ok(())
         }
     }
 }

@@ -2,23 +2,35 @@ use std::path::PathBuf;
 
 xflags::xflags! {
     src "./src/flags.rs"
-    /// xtask is a tool for building and testing the project
+    /// xtask 是一个用于构建和测试项目的工具
     cmd xtask {
-        /// 编译所有合约到output目录
+        /// 编译所有合约到 output 目录
         cmd build
         {
-            /// 你可以指定一个output目录，默认为./output
+            /// 可选参数，指定编译输出目录，默认为 ./output
             optional -o,--output output: PathBuf
-            /// 默认为debug模式
+            /// 可选参数，指定编译模式为 debug 模式，默认为 debug 模式
             optional --debug
-            /// 可以指定为release模式
+            /// 可选参数，指定编译模式为 release 模式
             optional -r,--release
-            /// 默认为quiet模式
+            /// 可选参数，指定输出信息的模式为安静模式，默认为安静模式
             optional -q,--quiet
-            /// 可以指定为verbose模式
+            /// 可选参数，指定输出信息的模式为详细模式
             optional -v,--verbose
-            /// 指定输出所有
+            /// 可选参数，指定输出所有信息
             optional -a,--all
+        }
+        cmd deploy {
+            /// 必选参数，指定部署合约的账户的密钥 URI
+            required -s, --suri suri: PathBuf
+            /// 可选参数，指定输出目录，默认为 ./output
+            optional directory: PathBuf
+            /// 可选参数，指定 substrate 节点的 Websockets URL，默认为 ws://localhost:9944
+            optional --url url: String
+            /// 可选参数，指定调用者最多可以支付的存储费用限制
+            optional --storage-deposit-limit STORAGE_DEPOSIT_LIMIT: u128
+            /// 可选参数，指定密钥的密码
+            optional -p, --password password: String
         }
     }
 }
@@ -33,6 +45,7 @@ pub struct Xtask {
 #[derive(Debug)]
 pub enum XtaskCmd {
     Build(Build),
+    Deploy(Deploy),
 }
 
 #[derive(Debug)]
@@ -43,6 +56,16 @@ pub struct Build {
     pub quiet: bool,
     pub verbose: bool,
     pub all: bool,
+}
+
+#[derive(Debug)]
+pub struct Deploy {
+    pub directory: Option<PathBuf>,
+
+    pub suri: PathBuf,
+    pub url: Option<String>,
+    pub storage_deposit_limit: Option<u128>,
+    pub password: Option<String>,
 }
 
 impl Xtask {

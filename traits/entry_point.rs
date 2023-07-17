@@ -1,4 +1,4 @@
-use crate::core::{env::AAEnvironment, user_operation::UserOperation};
+use crate::core::{env::AAEnvironment, helpers::Aggregator, user_operation::UserOperation};
 use crate::traits::aggregator::IAggregator;
 use crate::traits::stake_manager::{IStakeManager, StakeInfo};
 
@@ -22,10 +22,10 @@ pub type NonceManagerRef<E> = <<ink::reflect::TraitDefinitionRegistry<E> as INon
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct UserOpsPerAggregator<E: Environment = AAEnvironment> {
     /// 用户操作            
-    pub user_ops: UserOperation<E>,
+    pub user_ops: Vec<UserOperation<E>>,
 
     /// 聚合器地址      
-    pub aggregator: AggregatorRef<E>,
+    pub aggregator: Aggregator<E>,
 
     /// 聚合签名   
     pub signature: Vec<u8>,
@@ -42,9 +42,9 @@ pub struct UserOpsPerAggregator<E: Environment = AAEnvironment> {
 #[derive(Debug, PartialEq, Eq, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub struct ReturnInfo<E: Environment = AAEnvironment> {
-    pub pre_op_gas: E::Balance,
+    pub pre_op_gas: u64,
 
-    pub prefund: E::Balance,
+    pub prefund: u64,
 
     pub sig_failed: bool,
 
@@ -53,6 +53,11 @@ pub struct ReturnInfo<E: Environment = AAEnvironment> {
     pub valid_until: E::Timestamp,
 
     pub paymaster_context: Vec<u8>,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
+pub struct SenderAddressResult<E: Environment = AAEnvironment> {
+    pub sender: E::AccountId,
 }
 
 /// 返回的聚合签名信息
@@ -99,25 +104,18 @@ pub trait IEntryPoint {
         ops: Vec<UserOperation<AAEnvironment>>,
         beneficiary: <AAEnvironment as Environment>::AccountId,
     ) -> Result<()>;
-    // /// 使用聚合器执行一批 UserOperation
-    // ///
-    // /// - `ops_per_aggregator` 按聚合器分组的操作(或地址(0) 用于没有聚合器的账户)
-    // /// - `beneficiary` 用于接收费用的地址
-    // #[ink(message)]
-    // fn handle_aggregated_ops(
-    //     &self,
-    //     ops_per_aggregator: Vec<UserOpsPerAggregator<AAEnvironment>>,
-    //     beneficiary: <AAEnvironment as Environment>::AccountId,
-    // ) -> Result<()>;
+    /// 使用聚合器执行一批 UserOperation
+    ///
+    /// - `ops_per_aggregator` 按聚合器分组的操作(或地址(0) 用于没有聚合器的账户)
+    /// - `beneficiary` 用于接收费用的地址
+    #[ink(message)]
+    fn handle_aggregated_ops(
+        &mut self,
+        ops_per_aggregator: Vec<UserOpsPerAggregator<AAEnvironment>>,
+        beneficiary: <AAEnvironment as Environment>::AccountId,
+    ) -> Result<()>;
     /// 生成请求 ID  - 该请求的唯一标识符。   
     ///  请求 ID 是 userOp 的内容(除签名外)、入口点以及链 ID 的哈希。
     #[ink(message)]
     fn get_user_op_hash(&self, user_op: UserOperation<AAEnvironment>) -> [u8; 32];
-    // /// 模拟 account.validateUserOp 和 paymaster.validatePaymasterUserOp 的调用。
-    // /// @dev 此方法总是回滚,成功结果为 ValidationResult 错误。其他错误为失败。
-    // /// @dev 节点还必须验证它是否使用了禁用的操作码,并且它没有引用账户数据外部的存储。
-    // ///
-    // /// - `userOp` 要验证的用户操作
-    // #[ink(message)]
-    // fn simulate_validation(&self, user_op: UserOperation<AAEnvironment>) -> Result<()>;
 }

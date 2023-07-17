@@ -60,14 +60,16 @@ where
 #[derive(Clone, Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, core::fmt::Debug))]
 pub enum Aggregator<E: Environment = AAEnvironment> {
-    VerifiedBySelf,
+    /// address(0) VerifiedBySelf
+    NoAggregator,
     VerifiedBy(E::AccountId),
-    FailedVerification,
+    /// address(1) FailedVerification
+    IllegalAggregator,
 }
 
 impl<E: Environment> Default for Aggregator<E> {
     fn default() -> Self {
-        Self::VerifiedBySelf
+        Self::NoAggregator
     }
 }
 
@@ -76,7 +78,7 @@ pub fn intersect_time_range<E: Environment>(
     account_validation_data: ValidationData<E>,
     paymaster_validation_data: ValidationData<E>,
 ) -> ValidationData<E> {
-    let aggregator = if let Aggregator::<E>::VerifiedBySelf = account_validation_data.aggregator {
+    let aggregator = if let Aggregator::<E>::NoAggregator = account_validation_data.aggregator {
         paymaster_validation_data.aggregator
     } else {
         account_validation_data.aggregator
@@ -100,9 +102,4 @@ pub fn keccak256(input: &[u8]) -> [u8; 32] {
     let mut hash = [0u8; 32];
     Keccak256::hash(input, &mut hash);
     hash
-}
-
-/// 计算一个字节数组的 Keccak256 哈希值。
-pub fn keccak256_hash(input: &[u8]) -> Hash {
-    Hash::from(keccak256(input))
 }

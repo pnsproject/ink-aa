@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use simple_paymaster::SimplePaymasterRef;
+
 #[ink::contract]
 mod simple_paymaster {
     use base_paymaster::BasePaymasterTrait;
@@ -33,7 +35,7 @@ mod simple_paymaster {
             Ok((
                 vec![],
                 ValidationData {
-                    aggregator: Aggregator::VerifiedBySelf,
+                    aggregator: Aggregator::NoAggregator,
                     valid_after: self.env().block_timestamp(),
                     valid_until: self.env().block_timestamp() + 5000,
                 },

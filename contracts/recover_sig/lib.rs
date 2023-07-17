@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-pub use self::recover_sig::{ConfirmationStatus, RecoverSig};
+pub use self::recover_sig::{ConfirmationStatus, RecoverSig, RecoverSigRef};
 
 #[ink::contract(env = ink_aa::core::env::AAEnvironment)]
 mod recover_sig {
@@ -8,10 +8,7 @@ mod recover_sig {
     use ink::{prelude::vec::Vec, storage::Mapping};
     use ink_aa::core::user_operation::UserOperation;
     use ink_aa::core::{env::AAEnvironment, helpers::ValidationData};
-    use ink_aa::core::{
-        error::{Error, Result},
-        helpers::Aggregator,
-    };
+    use ink_aa::core::{error::Result, helpers::Aggregator};
     const MAX_OWNERS: u32 = 50;
 
     #[derive(Clone, Copy, scale::Decode, scale::Encode)]
@@ -157,7 +154,7 @@ mod recover_sig {
         ) -> Result<ValidationData<AAEnvironment>> {
             // TODO:
             Ok(ValidationData {
-                aggregator: Aggregator::VerifiedBySelf,
+                aggregator: Aggregator::NoAggregator,
                 valid_after: self.env().block_timestamp(),
                 valid_until: self.env().block_timestamp() + 5000,
             })

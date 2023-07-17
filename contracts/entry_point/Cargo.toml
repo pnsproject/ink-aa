@@ -8,6 +8,12 @@ edition = "2021"
 [dev-dependencies]
 ink_e2e = "4.2.0"
 
+# base_paymaster = { path = "../base_paymaster", default-features = false, features = ["ink-as-dependency"] }
+# base_account = { path = "../base_account", default-features = false, features = ["ink-as-dependency"] }
+# simple_paymaster = { path = "../simple_paymaster", default-features = false, features = ["ink-as-dependency"] }
+# recover_sig = { path = "../recover_sig", default-features = false, features = ["ink-as-dependency"] }
+# flip = { path = "../flip", default-features = false, features = ["ink-as-dependency"] }
+
 [lib]
 path = "lib.rs"
 

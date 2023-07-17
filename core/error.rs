@@ -8,9 +8,16 @@ use ink::prelude::vec::Vec;
 
 use super::env::AAEnvironment;
 
-#[derive(Debug, PartialEq, Eq, scale::Encode, scale::Decode)]
+#[derive(PartialEq, Eq, scale::Encode, scale::Decode, Debug)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum Error<E: Environment = AAEnvironment> {
+pub enum Error<E: Environment = AAEnvironment>
+where
+    E::Balance: core::fmt::Debug,
+{
+    Revert,
+    PaymasterNotDeployed,
+    AccountNotDeployed,
+    InvalidAggregator,
     NotOwner,
     NotFromEntryPoint,
     PaymasterDepositTooLow,
@@ -99,8 +106,8 @@ pub enum Error<E: Environment = AAEnvironment> {
 
     /// simulateHandleOp 的返回值        
     ExecutionResult {
-        pre_op_gas: E::Balance,
-        paid: E::Balance,
+        pre_op_gas: u64,
+        prefund: u64,
         valid_after: E::Timestamp,
         valid_until: E::Timestamp,
         target_success: bool,
