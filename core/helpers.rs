@@ -1,11 +1,11 @@
-use core::fmt::Debug;
-
 use ink::env::{
     hash::{CryptoHash, Keccak256},
     Environment,
 };
 use ink::primitives::Hash;
 use scale::{Decode, Encode};
+
+use super::env::AAEnvironment;
 
 /// 返回从 validateUserOp 获得的数据。
 ///
@@ -18,12 +18,24 @@ use scale::{Decode, Encode};
 /// * `valid_until` - 此 UserOp 的有效截止时间戳。
 #[derive(Clone, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub struct ValidationData<E: Environment> {
+pub struct ValidationData<E: Environment = AAEnvironment> {
     pub aggregator: Aggregator<E>,
     pub valid_after: E::Timestamp,
     pub valid_until: E::Timestamp,
 }
 
+impl<E: Environment> Default for ValidationData<E> {
+    fn default() -> Self {
+        use num_traits::identities::Zero;
+        Self {
+            aggregator: Default::default(),
+            valid_after: E::Timestamp::zero(),
+            valid_until: E::Timestamp::zero(),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
 impl<E: core::fmt::Debug> core::fmt::Debug for ValidationData<E>
 where
     E: Environment,
@@ -45,12 +57,20 @@ where
 }
 
 /// 如果为 `address(0)`，则表示账户自己验证了签名；如果为 `address(1)`，则表示账户未能验证签名。
-#[derive(Clone, Encode, Decode, Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum Aggregator<E: Environment> {
-    VerifiedBySelf,
+#[derive(Clone, Encode, Decode, Eq, PartialEq)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, core::fmt::Debug))]
+pub enum Aggregator<E: Environment = AAEnvironment> {
+    /// address(0) VerifiedBySelf
+    NoAggregator,
     VerifiedBy(E::AccountId),
-    FailedVerification,
+    /// address(1) FailedVerification
+    IllegalAggregator,
+}
+
+impl<E: Environment> Default for Aggregator<E> {
+    fn default() -> Self {
+        Self::NoAggregator
+    }
 }
 
 // 相交账户和支付主管的时间范围。
@@ -58,7 +78,7 @@ pub fn intersect_time_range<E: Environment>(
     account_validation_data: ValidationData<E>,
     paymaster_validation_data: ValidationData<E>,
 ) -> ValidationData<E> {
-    let aggregator = if let Aggregator::<E>::VerifiedBySelf = account_validation_data.aggregator {
+    let aggregator = if let Aggregator::<E>::NoAggregator = account_validation_data.aggregator {
         paymaster_validation_data.aggregator
     } else {
         account_validation_data.aggregator
@@ -77,8 +97,9 @@ pub fn intersect_time_range<E: Environment>(
 }
 
 /// 计算一个字节数组的 Keccak256 哈希值。
-pub fn keccak256(input: &[u8]) -> Hash {
+#[inline]
+pub fn keccak256(input: &[u8]) -> [u8; 32] {
     let mut hash = [0u8; 32];
     Keccak256::hash(input, &mut hash);
-    Hash::from(hash)
+    hash
 }

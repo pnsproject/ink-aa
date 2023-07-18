@@ -6,28 +6,25 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["contracts/*"]
+members = ["contracts/*", "xtask", "bundler"]
 
 
-[workspace.dependencies]
+[dependencies]
 ink = { version = "4.2.0", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.6", default-features = false, features = ["derive"] }
-ink_e2e = "4.2.0"
 
-[dependencies]
-ink = { workspace = true, default-features = false }
-
-scale = { package = "parity-scale-codec", workspace = true, default-features = false, features = ["derive"] }
-scale-info = { workspace = true, default-features = false, features = ["derive"], optional = true }
+num-traits = { version = "0.2", default-features = false }
 
 [features]
 default = ["std"]
-std = ["ink/std", "scale/std", "scale-info/std"]
+std = ["ink/std", "scale/std", "scale-info/std", "num-traits/std"]
 ink-as-dependency = []
 e2e-tests = []
 
+[dev-dependencies]
+hex = "0.4"
 
 [lib]
 name = "ink_aa"

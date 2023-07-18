@@ -1,9 +1,8 @@
 [package]
-name = "sender_creator"
+name = "recover_sig"
 version = "0.1.0"
 authors = ["[your_name] <[your_email]>"]
 edition = "2021"
-
 
 [dev-dependencies]
 ink_e2e = "4.2.0"
@@ -17,6 +16,9 @@ ink = { version = "4.2.0", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.6", default-features = false, features = ["derive"] }
+
+
+base_account = { path = "../base_account", default-features = false, features = ["ink-as-dependency"] }
 
 
 [features]

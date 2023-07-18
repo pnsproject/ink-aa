@@ -6,19 +6,19 @@ edition = "2021"
 
 
 [dev-dependencies]
-ink_e2e.workspace = true
+ink_e2e = "4.2.0"
 
 [lib]
 path = "lib.rs"
 
 [dependencies]
 ink-aa = { path = "../..", default-features = false, features = ["ink-as-dependency"] }
+ink = { version = "4.2.0", default-features = false }
 
-ink = { workspace = true, default-features = false }
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+scale-info = { version = "2.6", default-features = false, features = ["derive"] }
 
-scale = { package = "parity-scale-codec", workspace = true, default-features = false, features = ["derive"] }
-scale-info = { workspace = true, default-features = false, features = ["derive"], optional = true }
-
+entry_point = { path = "../entry_point", default-features = false, features = ["ink-as-dependency"] }
 
 [features]
 default = ["std"]

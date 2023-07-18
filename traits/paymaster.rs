@@ -1,6 +1,7 @@
-use crate::core::user_operation::UserOperation;
 use crate::core::{env::AAEnvironment, helpers::ValidationData};
+use crate::core::{error::Result, user_operation::UserOperation};
 use ink::env::Environment;
+use ink::prelude::vec::Vec;
 
 /// IPaymaster trait定义了一个支付代理合约应该实现的接口，它同意为用户的操作支付gas费用。
 /// 支付代理必须持有一定的股份来支付所需的entryPoint的股份和交易的gas费用。
@@ -33,7 +34,7 @@ pub trait IPaymaster {
         user_op: UserOperation<AAEnvironment>,
         user_op_hash: <AAEnvironment as Environment>::Hash,
         max_cost: <AAEnvironment as Environment>::Balance,
-    ) -> (Vec<u8>, ValidationData<AAEnvironment>);
+    ) -> Result<(Vec<u8>, ValidationData<AAEnvironment>)>;
 
     /// 操作后处理程序。
     /// 必须验证sender是否是entryPoint
@@ -53,12 +54,12 @@ pub trait IPaymaster {
         mode: PostOpMode,
         context: Vec<u8>,
         actual_gas_cost: <AAEnvironment as Environment>::Balance,
-    );
+    ) -> Result<()>;
 }
 
 /// PostOpMode是一个枚举类型，用于标识postOp方法中的操作模式。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, scale::Encode, scale::Decode, Hash)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Clone, Copy, scale::Encode, scale::Decode, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo,))]
 pub enum PostOpMode {
     /// 用户操作成功
     OpSucceeded,

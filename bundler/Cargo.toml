@@ -1,26 +1,17 @@
 [package]
-name = "sender_creator"
+name = "bundler"
 version = "0.1.0"
-authors = ["[your_name] <[your_email]>"]
 edition = "2021"
 
-
-[dev-dependencies]
-ink_e2e = "4.2.0"
-
-[lib]
-path = "lib.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ink-aa = { path = "../..", default-features = false, features = ["ink-as-dependency"] }
 ink = { version = "4.2.0", default-features = false }
-
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.6", default-features = false, features = ["derive"] }
+ink_e2e = { version = "4.2.0", default-features = false }
 
 
 [features]
 default = ["std"]
-std = ["ink/std", "scale/std", "scale-info/std", "ink-aa/std"]
-ink-as-dependency = []
-e2e-tests = []
+std = ["ink/std", "scale/std", "scale-info/std", "ink_e2e/std"]

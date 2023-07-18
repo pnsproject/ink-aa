@@ -6,22 +6,33 @@ edition = "2021"
 
 
 [dev-dependencies]
-ink_e2e.workspace = true
+ink_e2e = "4.2.0"
+
+# base_paymaster = { path = "../base_paymaster", default-features = false, features = ["ink-as-dependency"] }
+# base_account = { path = "../base_account", default-features = false, features = ["ink-as-dependency"] }
+# simple_paymaster = { path = "../simple_paymaster", default-features = false, features = ["ink-as-dependency"] }
+# recover_sig = { path = "../recover_sig", default-features = false, features = ["ink-as-dependency"] }
+# flip = { path = "../flip", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
 path = "lib.rs"
 
 [dependencies]
 ink-aa = { path = "../..", default-features = false, features = ["ink-as-dependency"] }
+ink = { version = "4.2.0", default-features = false }
 
-ink = { workspace = true, default-features = false }
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+scale-info = { version = "2.6", default-features = false, features = ["derive"] }
 
-scale = { package = "parity-scale-codec", workspace = true, default-features = false, features = ["derive"] }
-scale-info = { workspace = true, default-features = false, features = ["derive"], optional = true }
-
+stake_manager = { path = "../stake_manager", default-features = false, features = ["ink-as-dependency"] }
+nonce_manager = { path = "../nonce_manager", default-features = false, features = ["ink-as-dependency"] }
 
 [features]
 default = ["std"]
-std = ["ink/std", "scale/std", "scale-info/std", "ink-aa/std"]
+std = ["ink/std", "scale/std", "scale-info/std", "ink-aa/std", "stake_manager/std", "nonce_manager/std"]
 ink-as-dependency = []
 e2e-tests = []
+
+
+[profile.release]
+overflow-checks = false

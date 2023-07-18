@@ -1,3 +1,4 @@
+use crate::core::error::Result;
 use crate::core::{env::AAEnvironment, helpers::ValidationData, user_operation::UserOperation};
 use ink::env::Environment;
 
@@ -41,7 +42,7 @@ pub trait IAccount {
         user_op: UserOperation<AAEnvironment>,
         user_op_hash: Hash<AAEnvironment>,
         missing_account_funds: Balance<AAEnvironment>,
-    ) -> ValidationData<AAEnvironment>;
+    ) -> Result<ValidationData<AAEnvironment>>;
 }
 type Hash<E> = <E as Environment>::Hash;
 type Balance<E> = <E as Environment>::Balance;

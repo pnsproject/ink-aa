@@ -1,11 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use stake_manager::StakeManagerRef;
+
 #[ink::contract(env = ink_aa::core::env::AAEnvironment)]
 mod stake_manager {
-    use ink::codegen::EmitEvent;
     use ink::storage::Mapping;
-    use ink_aa::core::env::AAEnvironment;
-    use ink_aa::traits::stake_manager::{DepositInfo, IStakeManager};
+    use ink_aa::{
+        core::{
+            env::AAEnvironment,
+            error::{Error, Result},
+        },
+        traits::stake_manager::{DepositInfo, IStakeManager},
+    };
 
     #[ink(storage)]
     pub struct StakeManager {
@@ -78,18 +84,52 @@ mod stake_manager {
             }
         }
 
-        fn increment_deposit(&mut self, account: AccountId, amount: Balance) {
+        #[ink(message, payable)]
+        pub fn required_prefund(
+            &mut self,
+            required_address: AccountId,
+            required_amount: Balance,
+        ) -> Result<()> {
+            let info = self.deposits.get(required_address).unwrap_or_default();
+            if required_amount > info.deposit {
+                return Err(Error::WithdrawAmountTooLarge);
+            }
+            let deposit = info
+                .deposit
+                .checked_sub(required_amount)
+                .ok_or(Error::DepositOverflow)?;
+
+            self.deposits
+                .insert(Self::env().caller(), &DepositInfo { deposit, ..info });
+            // self.env().emit_event(Withdrawn {
+            //     account: self.env().caller(),
+            //     withdraw_address,
+            //     amount: withdraw_amount,
+            // });
+            // self.env()
+            //     .transfer(withdraw_address, withdraw_amount)
+            //     .map_err(|_| Error::FailedToWithdraw)?;
+
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn increment_deposit(&mut self, account: AccountId, amount: Balance) -> Result<()> {
             let mut info = self.get_deposit_info(account);
-            let new_amount = info.deposit.checked_add(amount);
-            assert!(new_amount.is_some(), "deposit overflow");
-            info.deposit = new_amount.unwrap();
+            let new_amount = info
+                .deposit
+                .checked_add(amount)
+                .ok_or(Error::DepositOverflow)?;
+
+            info.deposit = new_amount;
             self.deposits.insert(account, &info);
+            Ok(())
         }
     }
 
     impl IStakeManager for StakeManager {
         #[ink(message)]
-        fn get_deposit_info(&self, account: AccountId) -> DepositInfo {
+        fn get_deposit_info(&self, account: AccountId) -> DepositInfo<AAEnvironment> {
             self.deposits.get(account).unwrap_or_default()
         }
 
@@ -99,27 +139,35 @@ mod stake_manager {
         }
 
         #[ink(message, payable)]
-        fn deposit_to(&mut self, account: AccountId) {
-            self.increment_deposit(account, Self::env().transferred_value());
+        fn deposit_to(&mut self, account: AccountId) -> Result<()> {
+            self.increment_deposit(account, Self::env().transferred_value())?;
             let info = self.get_deposit_info(account);
             self.env().emit_event(Deposited {
                 account,
                 total_deposit: info.deposit,
             });
+            Ok(())
         }
 
         #[ink(message, payable)]
-        fn add_stake(&mut self, unstake_delay_sec: Timestamp) {
+        fn add_stake(&mut self, unstake_delay_sec: Timestamp) -> Result<()> {
             let info = self.deposits.get(Self::env().caller()).unwrap_or_default();
-            assert!(unstake_delay_sec > 0, "must specify unstake delay");
-            assert!(
-                unstake_delay_sec >= info.unstake_delay_sec,
-                "cannot decrease unstake time"
-            );
-            let stake = info.stake.checked_add(Self::env().transferred_value());
-            assert!(stake.is_some(), "deposit overflow");
-            let stake = stake.unwrap();
-            assert!(stake > 0, "no stake specified");
+
+            if unstake_delay_sec <= 0 {
+                return Err(Error::MustSpecifyUnstakeDelay);
+            }
+
+            if unstake_delay_sec < info.unstake_delay_sec {
+                return Err(Error::CannotDecreaseUnstakeTime);
+            }
+            let stake = info
+                .stake
+                .checked_add(Self::env().transferred_value())
+                .ok_or(Error::DepositOverflow)?;
+
+            if stake <= 0 {
+                return Err(Error::NoStakeSpecified);
+            }
             self.deposits.insert(
                 Self::env().caller(),
                 &DepositInfo {
@@ -135,13 +183,19 @@ mod stake_manager {
                 total_staked: stake,
                 unstake_delay_sec,
             });
+            Ok(())
         }
 
         #[ink(message)]
-        fn unlock_stake(&mut self) {
+        fn unlock_stake(&mut self) -> Result<()> {
             let info = self.get_deposit_info(self.env().caller());
-            assert!(info.unstake_delay_sec > 0, "not staked");
-            assert!(info.staked, "already unstaking");
+
+            if info.unstake_delay_sec <= 0 {
+                return Err(Error::NotStaked);
+            }
+            if !info.staked {
+                return Err(Error::AlreadyUnstaking);
+            }
             let withdraw_time = Self::env()
                 .block_timestamp()
                 .checked_add(info.unstake_delay_sec)
@@ -159,18 +213,26 @@ mod stake_manager {
                 account: Self::env().caller(),
                 withdraw_time,
             });
+            Ok(())
         }
 
         #[ink(message, payable)]
-        fn withdraw_stake(&mut self, withdraw_address: AccountId) {
+        fn withdraw_stake(&mut self, withdraw_address: AccountId) -> Result<()> {
             let info = self.deposits.get(Self::env().caller()).unwrap_or_default();
             let stake = info.stake;
-            assert!(stake > 0, "No stake to withdraw");
-            assert!(info.withdraw_time > 0, "must call unlockStake() first");
-            assert!(
-                info.withdraw_time <= Self::env().block_timestamp(),
-                "Stake withdrawal is not due"
-            );
+
+            if stake <= 0 {
+                return Err(Error::NoStakeToWithdraw);
+            }
+
+            if info.withdraw_time <= 0 {
+                return Err(Error::MustCallUnlockStakeFirst);
+            }
+
+            if info.withdraw_time > Self::env().block_timestamp() {
+                return Err(Error::StakeWithdrawalIsNotDue);
+            }
+
             self.deposits.insert(
                 Self::env().caller(),
                 &DepositInfo {
@@ -185,18 +247,28 @@ mod stake_manager {
                 withdraw_address,
                 amount: stake,
             });
-            let transfer_result = self.env().transfer(withdraw_address, stake);
+            self.env()
+                .transfer(withdraw_address, stake)
+                .map_err(|_| Error::FailedToWithdrawStake)?;
 
-            assert!(transfer_result.is_ok(), "failed to withdraw stake");
+            Ok(())
         }
 
         #[ink(message, payable)]
-        fn withdraw_to(&mut self, withdraw_address: AccountId, withdraw_amount: Balance) {
+        fn withdraw_to(
+            &mut self,
+            withdraw_address: AccountId,
+            withdraw_amount: Balance,
+        ) -> Result<()> {
             let info = self.deposits.get(Self::env().caller()).unwrap_or_default();
-            assert!(withdraw_amount <= info.deposit, "Withdraw amount too large");
-            let deposit = info.deposit.checked_sub(withdraw_amount);
-            assert!(deposit.is_some(), "deposit overflow");
-            let deposit = deposit.unwrap();
+            if withdraw_amount > info.deposit {
+                return Err(Error::WithdrawAmountTooLarge);
+            }
+            let deposit = info
+                .deposit
+                .checked_sub(withdraw_amount)
+                .ok_or(Error::DepositOverflow)?;
+
             self.deposits
                 .insert(Self::env().caller(), &DepositInfo { deposit, ..info });
             self.env().emit_event(Withdrawn {
@@ -204,9 +276,11 @@ mod stake_manager {
                 withdraw_address,
                 amount: withdraw_amount,
             });
-            let transfer_result = self.env().transfer(withdraw_address, withdraw_amount);
+            self.env()
+                .transfer(withdraw_address, withdraw_amount)
+                .map_err(|_| Error::FailedToWithdraw)?;
 
-            assert!(transfer_result.is_ok(), "failed to withdraw");
+            Ok(())
         }
     }
 }

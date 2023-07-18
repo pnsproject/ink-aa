@@ -1,15 +1,16 @@
+use crate::core::error::Result;
 use ink::env::Environment;
 use scale::{Decode, Encode};
 
 use crate::core::env::AAEnvironment;
 
 /// 存款信息。
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 #[cfg_attr(
     feature = "std",
     derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout)
 )]
-pub struct DepositInfo<E: Environment> {
+pub struct DepositInfo<E: Environment = AAEnvironment> {
     /// 实际存款金额。
     pub deposit: E::Balance,
     /// 是否已进行抵押。
@@ -22,9 +23,22 @@ pub struct DepositInfo<E: Environment> {
     pub withdraw_time: E::Timestamp,
 }
 
+impl Default for DepositInfo<AAEnvironment> {
+    fn default() -> Self {
+        Self {
+            deposit: 0,
+            staked: false,
+            stake: 0,
+            unstake_delay_sec: 0,
+            withdraw_time: 0,
+        }
+    }
+}
+
 /// 用于 `get_stake_info` 和 `simulate_validation` 的 API 结构体。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
-pub struct StakeInfo<E: Environment> {
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+pub struct StakeInfo<E: Environment = AAEnvironment> {
     /// 抵押的以太币金额。
     pub stake: E::Balance,
     /// 抵押在可取回前需要的延迟时间（秒）。
@@ -70,7 +84,7 @@ pub trait IStakeManager {
     ///
     /// * `account`：要添加存款的账户 ID。
     #[ink(message, payable)]
-    fn deposit_to(&mut self, account: <AAEnvironment as Environment>::AccountId);
+    fn deposit_to(&mut self, account: <AAEnvironment as Environment>::AccountId) -> Result<()>;
 
     /// 向具有给定延迟的账户添加抵押。
     ///
@@ -80,13 +94,16 @@ pub trait IStakeManager {
     ///
     /// * `unstake_delay_sec`：抵押在可取回前需要的新延迟时间（秒）。
     #[ink(message, payable)]
-    fn add_stake(&mut self, unstake_delay_sec: <AAEnvironment as Environment>::Timestamp);
+    fn add_stake(
+        &mut self,
+        unstake_delay_sec: <AAEnvironment as Environment>::Timestamp,
+    ) -> Result<()>;
 
     /// 尝试取消抵押。
     ///
     /// 可以在取回延迟期结束后取回抵押金额。
     #[ink(message)]
-    fn unlock_stake(&mut self);
+    fn unlock_stake(&mut self) -> Result<()>;
 
     /// 从已取消抵押的抵押中取回金额。
     ///
@@ -96,7 +113,10 @@ pub trait IStakeManager {
     ///
     /// * `withdraw_address`：要发送取回金额的地址。
     #[ink(message, payable)]
-    fn withdraw_stake(&mut self, withdraw_address: <AAEnvironment as Environment>::AccountId);
+    fn withdraw_stake(
+        &mut self,
+        withdraw_address: <AAEnvironment as Environment>::AccountId,
+    ) -> Result<()>;
 
     /// 从存款中取回金额。
     ///
@@ -109,5 +129,5 @@ pub trait IStakeManager {
         &mut self,
         withdraw_address: <AAEnvironment as Environment>::AccountId,
         withdraw_amount: <AAEnvironment as Environment>::Balance,
-    );
+    ) -> Result<()>;
 }
