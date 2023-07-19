@@ -47,14 +47,6 @@ mod base_account {
          * @param missingAccountFunds the minimum value this method should send the entrypoint.
          *  this value MAY be zero, in case there is enough deposit, or the userOp has a paymaster.
          */
-        // function _payPrefund(uint256 missingAccountFunds) internal virtual {
-        //     if (missingAccountFunds != 0) {
-        //         (bool success,) = payable(msg.sender).call{value : missingAccountFunds, gas : type(uint256).max}("");
-        //         (success);
-        //         //ignore failure (its EntryPoint's job to verify, not account.)
-        //     }
-        // }
-
         fn pay_prefund(&self, missing_account_funds: Balance) {
             if missing_account_funds != 0 {
                 //ignore failure (its EntryPoint's job to verify, not account.)

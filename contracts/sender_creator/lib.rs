@@ -4,7 +4,8 @@
 mod sender_creator {
     use core::mem::size_of;
     use ink::prelude::vec::Vec;
-
+    use ink_aa::core::error::Result;
+    use ink_aa::traits::sender_creator::ISenderCreator;
     #[ink(storage)]
     pub struct SenderCreator;
 
@@ -38,4 +39,31 @@ mod sender_creator {
             }
         }
     }
+
+    // impl ISenderCreator for SenderCreator {
+    //     #[ink(message)]
+    //     fn create_sender(&mut self, init_code: Vec<u8>) -> Result<AccountId> {
+    //         // 从 init_code 中取出 factory 地址
+    //         let factory = AccountId::from_slice(&init_code[0..32]);
+
+    //         // 构造调用参数
+    //         let salt = [0x42; 32];
+    //         let endowment = 0;
+    //         let gas_limit = 0; // no limit
+    //         let exec_input = ink::env::call::ExecutionInput::new(construct_selector());
+
+    //         // 调用 CreateBuilder 实例化
+    //         let account_id = ink::env::call::build_create()
+    //             .gas_limit(gas_limit)
+    //             .endowment(endowment)
+    //             .code_hash(factory.code_hash())
+    //             .salt_bytes(salt)
+    //             .exec_input(exec_input)
+    //             .returns::<AccountId>()
+    //             .try_instantiate()
+    //             .map_err(|e| e.into())?;
+
+    //         Ok(account_id)
+    //     }
+    // }
 }

@@ -10,8 +10,22 @@ ink = { version = "4.2.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.6", default-features = false, features = ["derive"] }
 ink_e2e = { version = "4.2.0", default-features = false }
+anyhow = { version = "1.0", default-features = false }
+ink-aa = { path = "..", default-features = false, features = ["ink-as-dependency"] }
+serde = { version = "1", default-features = false, features = ["derive"] }
 
+entry_point = {path = "../contracts/entry_point", features = ["ink-as-dependency"] }
+base_account = {path = "../contracts/base_account", features = ["ink-as-dependency"] }
+base_paymaster = {path = "../contracts/base_paymaster", features = ["ink-as-dependency"] }
+simple_paymaster = {path = "../contracts/simple_paymaster", features = ["ink-as-dependency"] }
+recover_sig = {path = "../contracts/recover_sig", features = ["ink-as-dependency"] }
+
+
+num-traits = { version = "0.2", default-features = false }
+
+tokio = {version = "1",features = ["full"]}
 
 [features]
 default = ["std"]
-std = ["ink/std", "scale/std", "scale-info/std", "ink_e2e/std"]
+std = ["ink/std", "scale/std", "scale-info/std", "ink_e2e/std", "anyhow/std", "ink-aa/std", "serde/std","entry_point/std","num-traits/std",
+"base_account/std","base_paymaster/std","simple_paymaster/std","recover_sig/std"]
