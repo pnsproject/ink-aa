@@ -234,17 +234,36 @@ The Bundler implements the key functionality of taking user operations construct
 
 4. Promote the project in the Polkadot ecosystem and collaborate with other projects.
 
-### Detailed Roadmap
+### Timeline
 
-- Q3 2023: Develop and test EntryPoint and Bundler.
+Total Duration: 6 months 
 
-- Q4 2023: Release EntryPoint and Bundler.
+Start Date: August 15, 2023
 
-- Q1 2024: Conduct integration testing and security auditing.
+August 15 - December 15, 2023 (4 months): 
 
-- Q2 2024: Propose a PSP standard specification suitable for Substrate.
+- Develop and test EntryPoint and Bundler (2 developers, cost $60,000)
 
-- Q3 2024: Promote the project in the Polkadot ecosystem and collaborate with other projects.
+December 16, 2023 - January 15, 2024 (1 month):
+
+- Release EntryPoint and Bundler
+- Conduct integration testing (1 tester, cost $5,000)
+
+January 16 - February 15, 2024 (1 month):
+
+- Security audit (1 auditor, cost $8,000)  
+
+February 16 - February 28, 2024 (15 days):
+
+- Propose PSP standard specification (1 standards expert, cost $3,000)
+
+August 15, 2023 - February 15, 2024 (6 months):
+
+- Promote project and collaborate (1 community manager, cost $10,000)
+
+### Budget
+
+Total Budget: $86,000
 
 ## Conclusion
 
