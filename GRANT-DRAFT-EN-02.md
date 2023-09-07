@@ -228,10 +228,10 @@ _Note: The interfaces shown are subject to change during further development._
 
 Our team consists of:
 
-- cupnfish - Rust Engineer, responsible for core protocol development.
-- jiang - Solidity Developer, responsible for smart contract development.
-- fangda - Frontend Engineer, responsible for UI and frontend code.
-- cat - Blockchain Researcher, responsible for documentation and research.
+- cupnfish - Rust Engineer of Parallel Identity, responsible for core protocol development.
+- jiang - Solidity Developer of Parallel Identity, responsible for smart contract development.
+- fangda - Frontend Engineer of Parallel Identity, responsible for UI and frontend code.
+- cat - Blockchain Researcher of Parallel Identity, responsible for documentation and research.
 
 The team has experience building blockchain solutions and won 1st place at the Polkadot Hackathon Smart Contracts track. We are excited to further develop Polkadot Smart Account into a production-ready solution.
 
