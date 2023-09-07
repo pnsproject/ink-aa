@@ -239,9 +239,9 @@ The team has experience building blockchain solutions and won 1st place at the P
 
 ### Overview
 
-- Total Estimated Duration: 3 months
-- Full-Time Equivalent (FTE): 2
-- Total Costs: $60,000 USD
+- Total Estimated Duration: 5 months
+- Full-Time Equivalent (FTE): 3
+- Total Costs: $60,500 USD
 
 ### Milestone 1: Develop EntryPoint and Bundler
 
@@ -289,14 +289,10 @@ The team has experience building blockchain solutions and won 1st place at the P
 | 0b.    | Documentation       | Update documentation for Passkey integration.              |
 | 0c.    | Testing Guide       | Update tests for Passkey integration.               |
 | 0d.    | Article             | We will publish an article explaining the work and implementation.           |
-| 1      | Integrate Passkey into Polkadot Smart Account | Integrate Passkey standard to enable passwordless and phishing-resistant authentication. |
-| 2      | Integrate Passkey into Web APP               |  Web APP integration with Passkey to make it seamless for users |
+| 1      | Integrate Passkey into Polkadot Smart Account | Integrate Passkey standard to enable passwordless and secure authentication. |
+| 2      | Integrate Passkey into Web APP               |  Web APP integration with Passkey to make it seamless for users. |
 
 Passkey standard allows passwordless authentication that is resistant to phishing attacks. We will integrate this standard to allow users to directly sign with biometrics etc. without needing to manage keys themselves. This further simplifies the user operation flow and improves security.
-
-### Budget
-
-Total Budget: $6,000 USD
 
 ## Conclusion :checkered_flag:
 
