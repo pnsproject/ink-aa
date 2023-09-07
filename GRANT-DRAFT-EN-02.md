@@ -231,7 +231,7 @@ Our team consists of:
 - cupnfish - Rust Engineer, responsible for core protocol development.
 - jiang - Solidity Developer, responsible for smart contract development.
 - fangda - Frontend Engineer, responsible for UI and frontend code.
-- cat - Blockchain Researcher, responsible for operations and research.
+- cat - Blockchain Researcher, responsible for documentation and research.
 
 The team has experience building blockchain solutions and won 1st place at the Polkadot Hackathon Smart Contracts track. We are excited to further develop Polkadot Smart Account into a production-ready solution.
 
@@ -241,13 +241,14 @@ The team has experience building blockchain solutions and won 1st place at the P
 
 - Total Estimated Duration: 3 months
 - Full-Time Equivalent (FTE): 2
-- Total Costs: $6,000 USD
+- Total Costs: $60,000 USD
 
 ### Milestone 1: Develop EntryPoint and Bundler
 
-- Estimated Duration: 1.5 months
-- FTE: 2
-- Costs: $3,000 USD
+- Estimated Duration: 3 months
+- FTE: 3
+- Average salary: $4,500 USD
+- Total Costs: $40,500 USD
 
 | Number | Deliverable         | Specification                                             |
 | ------ | ------------------- | --------------------------------------------------------- |
@@ -259,32 +260,39 @@ The team has experience building blockchain solutions and won 1st place at the P
 | 2.     | Bundler             | Implement receiving, validating, batching UserOperations. |
 | 3.     | Docker Image        | Provide docker image for testing.                         |
 
-### Milestone 2: Integrate Apple PASSKEY
+### Milestone 2: Develop Web App with UI to manage smart account
+
+- Estimated Duration: 1 months
+- FTE: 2
+- Average salary: $4,000 USD
+- Total Costs: $8,000 USD
+
+| Number | Deliverable         | Specification                                             |
+| ------ | ------------------- | --------------------------------------------------------- |
+| 0a.    | License             | Apache 2.0                                                |
+| 0b.    | Documentation       | We will provide documentation for the Web App.            |
+| 0c.    | Testing Guide       | Core functions will have unit test coverage.              |
+| 0d.    | Article             | We will publish an article explaining the work.           |
+| 1.     | Web App code implementation | Build it TypeScript, React and Vite.          |
+| 2.     | Docker Image        | Provide docker image for testing.                         |
+
+### Milestone 3: Integrate Passkey
 
 - Estimated Duration: 1 month
-- FTE: 2
-- Costs: $2,000 USD
+- FTE: 3
+- Average salary: $4,000 USD
+- Total Costs: $12,000 USD
 
 | Number | Deliverable             | Specification                                                                                    |
 | ------ | ----------------------- | ------------------------------------------------------------------------------------------------ |
-| 1      | Integrate Apple PASSKEY | Integrate Apple's PASSKEY standard to enable passwordless and phishing-resistant authentication. |
-| 2      | Documentation           | Update documentation for PASSKEY integration.                                                    |
-| 3      | Testing                 | Update tests for PASSKEY integration.                                                            |
-| 4      | Tutorial                | Publish tutorial for using PASSKEY with user operations.                                         |
+| 0a.    | License             | Apache 2.0                                                |
+| 0b.    | Documentation       | Update documentation for Passkey integration.              |
+| 0c.    | Testing Guide       | Update tests for Passkey integration.               |
+| 0d.    | Article             | We will publish an article explaining the work and implementation.           |
+| 1      | Integrate Passkey into Polkadot Smart Account | Integrate Passkey standard to enable passwordless and phishing-resistant authentication. |
+| 2      | Integrate Passkey into Web APP               |  Web APP integration with Passkey to make it seamless for users |
 
-Apple's PASSKEY standard allows passwordless authentication that is resistant to phishing attacks. We will integrate this standard to allow users to directly sign with biometrics etc. without needing to manage keys themselves. This further simplifies the user operation flow and improves security.
-
-### Milestone 3: Improve User Experience
-
-- Estimated Duration: 0.5 month
-- FTE: 2
-- Costs: $1,000 USD
-
-| Number | Deliverable   | Specification                                |
-| ------ | ------------- | -------------------------------------------- |
-| 1.     | Frontend Code | Improve frontend code and user interface.    |
-| 2.     | Mobile App    | Develop mobile app for UserOperations.       |
-| 3.     | Documentation | Improve documentation and add more examples. |
+Passkey standard allows passwordless authentication that is resistant to phishing attacks. We will integrate this standard to allow users to directly sign with biometrics etc. without needing to manage keys themselves. This further simplifies the user operation flow and improves security.
 
 ### Budget
 
@@ -310,8 +318,6 @@ We learned about the Web3 Foundation Grants Program through participating in Pol
 
 **What work has been done already?**
 
-We have developed a proof-of-concept implementation of the Polkadot Smart Account solution during the hackathon. This included basic contracts for the EntryPoint and Bundler components.
+We have developed a minimal proof-of-concept implementation of the Polkadot Smart Account solution during the Polkadot Asia Hackathon 2023. This included basic contracts for the EntryPoint contract component.
 
-**Have you ever applied for other grants?**
-
-Yes, our project "Polkadot Smart Account" won 1st place in the Smart Contracts track at the Polkadot Hackathon. This provided a grant to further develop the initial proof-of-concept.
+Our project "Polkadot Smart Account" won 1st place in the Smart Contracts track at the Polkadot Asia Hackathon 2023. We want to further develop the initial proof-of-concept.
